@@ -38,11 +38,7 @@ while day < n_days:
     for j in range(len(lats)):
         for i in range(len(lons)):
             sunrise = AlmanacSunrise(lats[j], lons[i], current_date)
-            # convertUTCtoLocal(sunrise_time, lon)
             sunset = AlmanacSunset(lats[j], lons[i], current_date)
-            # convertUTCtoLocal(sunset_time, lon)
-#             print(current_date, lats[j], lons[i], sunrise, sunset, convertUTCtoLocal(sunrise, lons[i]),
-#                   convertUTCtoLocal(sunset, lons[i]))
             ds_sunrise[day, j, i] = sunrise
             ds_sunset[day, j, i] = sunset
     current_date += timedelta(increment_days)
@@ -50,7 +46,7 @@ while day < n_days:
 
 print("sunrise, sunset calculated")
 
-ds = nc.Dataset('/scratch/manra003/SunriseTime_5x5_7d_Atlantic_Jan2015.nc', 'w', format='NETCDF4')
+ds = nc.Dataset('/scratch/manra003/SunriseTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunrise time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
@@ -75,7 +71,7 @@ sunrise_time[::] = ds_sunrise
 
 ds.close()
 
-ds = nc.Dataset('/scratch/manra003/SunsetTime_5x5_7d_Atlantic_Jan2015.nc', 'w', format='NETCDF4')
+ds = nc.Dataset('/scratch/manra003/SunsetTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunset time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 

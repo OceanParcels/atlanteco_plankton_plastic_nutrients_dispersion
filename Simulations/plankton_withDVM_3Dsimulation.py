@@ -5,7 +5,6 @@ from parcels import FieldSet, ParticleSet, JITParticle, AdvectionRK4_3D, Field,V
 from parcels.tools.converters import TimeConverter
 from datetime import timedelta, datetime
 from kernels.plankton import ZooplanktonDrift
-# from kernels.utilities import DayoftheYear
 import math
 
 data_path='/data/oceanparcels/input_data/NEMO-MEDUSA/ORCA025-N006/'
@@ -81,35 +80,11 @@ print(time_zero_totalseconds)
 fieldset.add_constant('start_time', time_zero_totalseconds)
 
 start_datetime = datetime(2013, 1, 2, 12, 0, 0)
-# time_step = timedelta(hours=3).total_seconds()
 time_step = 300
-
-# get start DOY
-# start_doy = start_datetime.timetuple().tm_yday
-# fieldset.add_constant('start_doy', start_doy)
-# print(start_doy)
-
-# start_time_tseconds = start_datetime.hour * 60 * 60 + start_datetime.minute * 60 + start_datetime.second
-# # subtract the first time step: dt will be added to 'tod' in the first run of the kernel.
-# start_time_tseconds -= time_step
-# print(start_time_tseconds)
-
-# class doy(JITParticle):
-#     tod = Variable('tod', initial=start_time_tseconds, to_write=False)
-#     doy = Variable('doy', initial=fieldset.start_doy)
-#     is_leap_year = Variable('is_leap_year', initial=math.fmod(start_datetime.year, 4) == 0 and (
-#             math.fmod(start_datetime.year, 100) != 0 or math.fmod(start_datetime.year, 400) == 0))
-#     current_year = Variable('current_year', initial=start_datetime.year)
-
-class plankton(JITParticle):
-    sunrise = Variable('sunrise', initial=0.0)
-    sunset = Variable('sunset', initial=0.0)
-
-# pset = ParticleSet(fieldset, pclass=plankton, lon=[-35.859375,-62.841796,1.23046875,-41.572265], lat=[44.590467,30.600093,-3.074695,-48.45835], time=start_datetime, depth=[400,400,400,400])
 
 pset = ParticleSet.from_line(fieldset=fieldset,  
                              size=150, 
-                             pclass=plankton,
+                             pclass=JITParticle,
                              start=(-47.07351,  1.50464), 
                              finish=(-42.23952, 1.50464), 
                              time=start_datetime, 
@@ -119,9 +94,9 @@ pset = ParticleSet.from_line(fieldset=fieldset,
 output_file_path="/scratch/manra003/Plankton_withDVM_3D_1Y_150Prtdt1yr_z350.nc"
 output_file = pset.ParticleFile(name=output_file_path, outputdt=timedelta(hours=1))
 
-kernels = pset.Kernel(AdvectionRK4_3D) + pset.Kernel(ZooplanktonDrift)  # + pset.Kernel(DayoftheYear)
+kernels = pset.Kernel(AdvectionRK4_3D) + pset.Kernel(ZooplanktonDrift) 
+
 pset.execute(kernels,   
-#              runtime=timedelta(hours=24),
              endtime=datetime(2013,12,28,12,0,0),             
              dt=time_step,                       
              output_file=output_file)

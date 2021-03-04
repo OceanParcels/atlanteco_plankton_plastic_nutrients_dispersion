@@ -1,4 +1,4 @@
-# Source: https://edwilliams.org/sunrise_sunset_example.htm
+# Algorithm Source: https://edwilliams.org/sunrise_sunset_example.htm
 # 	Almanac for Computers, 1990
 # 	published by Nautical Almanac Office
 # 	United States Naval Observatory
