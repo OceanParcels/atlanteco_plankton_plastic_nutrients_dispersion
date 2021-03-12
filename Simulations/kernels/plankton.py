@@ -3,6 +3,9 @@ import math
 # defines the vertical movement of a simple plankton particle that performs Diel Vertical Migration(DVM)
 def ZooplanktonDrift(particle, fieldset, time):    
     
+    # TODO: increasing the speed of plankton from 0 to max as it leaves a given depth 
+    # and decreasing the speed from max to 0 as the plankton approaches desired depth
+    # approximate values for Copepods
     migration_speed = 0.035     #(m/s)
  
     min_depth = 10      #(m)
@@ -12,8 +15,8 @@ def ZooplanktonDrift(particle, fieldset, time):
     
     #TODO error handling
     
-    # Extract the current hour of the day from the origin timestamp from velocity files(data available from) and time since the origin time.
-    
+    # Extract the current hour of the day from the origin timestamp from velocity files
+    # (data available from) and time since the origin time.
     total_seconds = fieldset.start_time + time
     total_hour = total_seconds/3600
     current_hour = math.fmod(total_hour, 24)

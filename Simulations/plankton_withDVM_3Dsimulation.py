@@ -35,14 +35,27 @@ dimensions = {'U': {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthw', 'time': '
              }
 
 fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize='auto')
-u_file=nc.Dataset(ufiles[0])
-ticks=u_file['time_counter'][:][0]
-converted_ticks = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
-print(converted_ticks.strftime("%Y-%m-%d %H:%M:%S"))
+simulation_start = datetime(2013, 1, 2, 12, 0, 0)
+simulation_end = datetime(2013, 12, 28, 12, 0, 0)
 
-time_origin= TimeConverter(np.datetime64(nc.num2date(sunrise_nc['time'][0],'seconds since 2013-01-01',sunrise_nc['time'].calendar)))
-print(time_origin, sunrise_nc['time'].units)
+u_file = nc.Dataset(ufiles[0])
+ticks = u_file['time_counter'][:][0]
+modeldata_start = datetime(1900, 1, 1) + timedelta(seconds=ticks)
+
+assert simulation_start >= modeldata_start
+
+u_file = nc.Dataset(ufiles[len(ufiles)-1])
+ticks = u_file['time_counter'][:][0]
+modeldata_end = datetime(1900, 1, 1) + timedelta(seconds=ticks)
+
+assert simulation_end <= modeldata_end
+
+# total number of seconds in that "day" from which the data is available.
+time_zero_totalseconds = modeldata_start.hour * 60 * 60 + modeldata_start.minute * 60 + modeldata_start.second
+fieldset.add_constant('start_time', time_zero_totalseconds)
+
+time_origin = TimeConverter(np.datetime64(nc.num2date(sunrise_nc['time'][0],'seconds since '+ str(simulation_start.year) + '-01-01',sunrise_nc['time'].calendar)))
 
 fieldset.add_field(Field("Sunrise",
                         data=sunrise_nc['sunrise'][::],
@@ -64,22 +77,6 @@ fieldset.add_field(Field("Sunset",
 #                         time_periodic=
                         interp_method='linear'))
 
-
-
-# extract the origin timestamp from first the velocity file
-u_temp = nc.Dataset(ufiles[0])
-ticks = u_temp['time_counter'][:][0]
-time_zero = datetime(1900, 1, 1) + timedelta(seconds=ticks)
-print(time_zero)
-
-# total number of seconds in that "day" from which the data is available.
-time_zero_totalseconds = time_zero.hour * 60 * 60 + time_zero.minute * 60 + time_zero.second
-print(time_zero_totalseconds)
-
-# to make this value available to the custom kernel during simulation add it to fieldset
-fieldset.add_constant('start_time', time_zero_totalseconds)
-
-start_datetime = datetime(2013, 1, 2, 12, 0, 0)
 time_step = 300
 
 pset = ParticleSet.from_line(fieldset=fieldset,  
@@ -87,7 +84,7 @@ pset = ParticleSet.from_line(fieldset=fieldset,
                              pclass=JITParticle,
                              start=(-47.07351,  1.50464), 
                              finish=(-42.23952, 1.50464), 
-                             time=start_datetime, 
+                             time=simulation_start, 
                              repeatdt= timedelta(days=1),
                              depth=350) 
 
@@ -97,7 +94,7 @@ output_file = pset.ParticleFile(name=output_file_path, outputdt=timedelta(hours=
 kernels = pset.Kernel(AdvectionRK4_3D) + pset.Kernel(ZooplanktonDrift) 
 
 pset.execute(kernels,   
-             endtime=datetime(2013,12,28,12,0,0),             
+             endtime=simulation_end,             
              dt=time_step,                       
              output_file=output_file)
 
