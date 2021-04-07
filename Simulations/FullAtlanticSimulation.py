@@ -8,8 +8,10 @@ from parcels.tools.statuscodes import ErrorCode
 data_path = '/data/oceanparcels/input_data/NEMO16_CMCC/'
 mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
-ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_20180[1-3]*_U.nc'))
-vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_20180[1-3]*_V.nc'))
+coords = pd.read_csv(r'/scratch/manra003/NEMORomeo_H3Release_LatLon_new.csv')
+
+ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_201801*_U.nc'))
+vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_201801*_V.nc'))
 
 filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'data': ufiles},
              'V': {'lon': mesh_mask, 'lat': mesh_mask, 'data': vfiles}}
@@ -20,7 +22,7 @@ variables = {'U': 'uo',
 dimensions = {'lon': 'glamf', 'lat': 'gphif', 'time': 'time_counter'}
 
 simulation_start = datetime(2018, 1, 1, 12, 0, 0)
-simulation_end = simulation_start + timedelta(days=60)
+simulation_end = simulation_start + timedelta(days=15)
 
 u_file = nc.Dataset(ufiles[0])
 ticks = u_file['time_counter'][:][0]
@@ -36,15 +38,13 @@ assert simulation_end <= modeldata_end
 
 fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize='auto')
 
-coords = pd.read_csv(r'/Data/Atlantic_LatLons_1degree_mesh.csv')
-
 pset = ParticleSet.from_list(fieldset=fieldset, 
                              pclass=JITParticle,
                              lon=coords['Longitudes'],
                              lat=coords['Latitudes'],
                              time=simulation_start)
                             
-output_file = pset.ParticleFile(name="/scratch/dmanral/FullAtlantic_1degree_mesh_2months.nc", outputdt=timedelta(hours=6))
+output_file = pset.ParticleFile(name="/scratch/manra003/FullRomeo_H3Grids_15Days_new.nc", outputdt=timedelta(days=1))
 
 def delete_particle(particle, fieldset, time):
     # remove print later
@@ -53,9 +53,9 @@ def delete_particle(particle, fieldset, time):
 
 pset.execute(AdvectionRK4,                
              endtime=simulation_end,
-             dt=300,                       
+             dt=600,                       
              output_file=output_file,
-            recovery= {ErrorCode.ErrorOutOfBounds:delete_particle})
+             recovery={ErrorCode.ErrorOutOfBounds:delete_particle})
 
 output_file.close()
 
