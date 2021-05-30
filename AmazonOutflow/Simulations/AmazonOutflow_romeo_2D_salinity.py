@@ -7,9 +7,11 @@ import numpy as np
 data_path = '/data/oceanparcels/input_data/NEMO16_CMCC/'
 mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
-ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_20180[7-9]*_U.nc') + glob(data_path + 'ROMEO.01_1d_uo_20181[0-1]*_U.nc'))
-vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_20180[7-9]*_V.nc') + glob(data_path + 'ROMEO.01_1d_vo_20181[0-1]*_V.nc'))
-sfiles =  sorted(glob(data_path + 'ROMEO.01_1d_so_20180[7-9]*_T.nc') + glob(data_path + 'ROMEO.01_1d_so_20181[0-1]*_T.nc'))
+year = 2009
+
+ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_{0}0[7-9]*_U.nc'.format(year)) + glob(data_path + 'ROMEO.01_1d_uo_{0}10*_U.nc'.format(year)))
+vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_{0}0[7-9]*_V.nc'.format(year)) + glob(data_path + 'ROMEO.01_1d_vo_{0}10*_V.nc'.format(year)))
+sfiles =  sorted(glob(data_path + 'ROMEO.01_1d_so_{0}0[7-9]*_T.nc'.format(year)) + glob(data_path + 'ROMEO.01_1d_so_{0}10*_T.nc'.format(year)))
 
 filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'data': ufiles},
              'V': {'lon': mesh_mask, 'lat': mesh_mask, 'data': vfiles},
@@ -21,8 +23,8 @@ variables = {'U': 'uo',
 
 dimensions = {'lon': 'glamf', 'lat': 'gphif', 'time': 'time_counter'}
 
-simulation_start = datetime(2018, 7, 1, 12, 0, 0)
-simulation_end = datetime(2018, 11, 30, 12, 0, 0)
+simulation_start = datetime(year, 7, 1, 12, 0, 0)
+simulation_end = datetime(year, 10, 31, 12, 0, 0)
 
 u_file = nc.Dataset(ufiles[0])
 ticks = u_file['time_counter'][:][0]
@@ -45,16 +47,15 @@ class Particle(JITParticle):
 def SampleSalinity(particle, fieldset, time):
     particle.s = fieldset.S[time, particle.depth, particle.lat, particle.lon]
     
-
 pset = ParticleSet.from_line(fieldset=fieldset, 
                              size=200, 
                              pclass=Particle,
-                             start=(-46.3224637, 2.5242153), 
-                             finish=(-46.1222564, 2.2223863), 
+                             start=(-49.0664412, 0.930062), 
+                             finish=(-48.8676954, 0.6292335), 
                              repeatdt=timedelta(days=1),
                              time=simulation_start)
                             
-output_file = pset.ParticleFile(name="/scratch/manra003/Atlanteco_Romeo_July-Nov2018_OFF400km_z0m_sal.nc", outputdt=timedelta(days=1))
+output_file = pset.ParticleFile(name="/scratch/manra003/amazon/Atlanteco_Romeo_July-Oct{0}_OFF50km_z0m_sal.nc".format(year), outputdt=timedelta(days=1))
 
 Salinity_kernel = pset.Kernel(SampleSalinity)
 
