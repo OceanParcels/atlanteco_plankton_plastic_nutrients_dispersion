@@ -5,28 +5,9 @@ from datetime import timedelta, datetime
 import pandas as pd
 from parcels.tools.statuscodes import ErrorCode
 import numpy as np
+from kernels.samplefields import SampleTSFields
 
-  
-def SampleFields(particle, fieldset, time):
-    temp = fieldset.T[time, particle.depth, particle.lat, particle.lon]
-    sal = fieldset.S[time, particle.depth, particle.lat, particle.lon]
-
-    if time == 0.0:
-        particle.min_temp = temp
-        particle.max_temp = temp
-        particle.min_sal = sal
-        particle.max_sal = sal
-        
-    if temp < particle.min_temp:
-        particle.min_temp = temp
-    elif temp > particle.max_temp:
-        particle.max_temp = temp
-    
-    if sal < particle.min_sal:
-        particle.min_sal = sal
-    elif sal > particle.max_sal:
-        particle.max_sal = sal
-    
+   
 def delete_particle(particle, fieldset, time):
     particle.delete()
     
@@ -34,28 +15,32 @@ def delete_particle(particle, fieldset, time):
 data_path = '/data/oceanparcels/input_data/NEMO16_CMCC/'
 mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
-simulation_start = datetime(2011, 1, 1, 12, 0, 0)
-simulation_end = datetime(2011, 2, 1, 12, 0, 0)
+simulation_start = datetime(2011, 5, 4, 12, 0, 0)
+simulation_end = datetime(2011, 5, 6, 12, 0, 0)
 
-ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_{0}{1}*_U.nc'.\
-                      format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
-                 glob(data_path + 'ROMEO.01_1d_uo_{0}{1}01_grid_U.nc'.\
-                      format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
+# ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_{0}{1}*_U.nc'.\
+#                       format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
+#                  glob(data_path + 'ROMEO.01_1d_uo_{0}{1}01_grid_U.nc'.\
+#                       format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
 
-vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_{0}{1}*_V.nc'.\
-                      format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
-                 glob(data_path + 'ROMEO.01_1d_vo_{0}{1}01_grid_V.nc'.\
-                      format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
+# vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_{0}{1}*_V.nc'.\
+#                       format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
+#                  glob(data_path + 'ROMEO.01_1d_vo_{0}{1}01_grid_V.nc'.\
+#                       format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
 
-tfiles =  sorted(glob(data_path + 'ROMEO.01_1d_thetao_{0}{1}*_T.nc'.\
-                      format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
-                 glob(data_path + 'ROMEO.01_1d_thetao_{0}{1}01_grid_T.nc'.\
-                      format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
+# tfiles =  sorted(glob(data_path + 'ROMEO.01_1d_thetao_{0}{1}*_T.nc'.\
+#                       format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
+#                  glob(data_path + 'ROMEO.01_1d_thetao_{0}{1}01_grid_T.nc'.\
+#                       format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
 
-sfiles =  sorted(glob(data_path + 'ROMEO.01_1d_so_{0}{1}*_T.nc'.\
-                      format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
-                 glob(data_path + 'ROMEO.01_1d_so_{0}{1}01_grid_T.nc'.\
-                      format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
+# sfiles =  sorted(glob(data_path + 'ROMEO.01_1d_so_{0}{1}*_T.nc'.\
+#                       format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))) + \
+#                  glob(data_path + 'ROMEO.01_1d_so_{0}{1}01_grid_T.nc'.\
+#                       format(simulation_end.strftime("%Y"), simulation_end.strftime("%m"))))
+ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_2011050[4-7]*_U.nc'))
+vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_2011050[4-7]*_V.nc'))
+tfiles =  sorted(glob(data_path + 'ROMEO.01_1d_thetao_2011050[4-7]*_T.nc'))
+sfiles =  sorted(glob(data_path + 'ROMEO.01_1d_so_2011050[4-7]*_T.nc'))
 
 filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'data': ufiles},
              'V': {'lon': mesh_mask, 'lat': mesh_mask, 'data': vfiles},
@@ -95,17 +80,17 @@ class Particle(JITParticle):
     
 pset = ParticleSet.from_list(fieldset=fieldset, 
                              pclass=Particle,
-                             lon=coords['Longitudes'],
-                             lat=coords['Latitudes'],
+                             lon=coords['Longitudes'][5000:10000],
+                             lat=coords['Latitudes'][5000:10000],
                              time=simulation_start)
                             
-output_file = pset.ParticleFile(name="/scratch/manra003/tara_res5_01/FullTara_Res5_TS_Jan2011_dt600.nc", outputdt=timedelta((simulation_end-simulation_start).days))
+output_file = pset.ParticleFile(name="/scratch/manra003/Test_Res5_TS_May2011_dt600.nc", outputdt=timedelta((simulation_end-simulation_start).days))
 
-sample_kernel = pset.Kernel(SampleFields)
+sample_kernel = pset.Kernel(SampleTSFields)
 
 pset.execute(AdvectionRK4 + sample_kernel,                
              endtime=simulation_end,
-             dt=600,                       
+             dt=timedelta(hours=3),                       
              output_file=output_file,
             recovery= {ErrorCode.ErrorOutOfBounds:delete_particle})
 
