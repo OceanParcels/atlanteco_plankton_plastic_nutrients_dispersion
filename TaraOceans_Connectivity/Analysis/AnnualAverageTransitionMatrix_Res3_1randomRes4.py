@@ -101,25 +101,9 @@ probability_matrix = full_transition_matrix / per_month_simulations
 assert (np.round(np.sum(probability_matrix, axis=2), 4) == 1).all()
 # assert (np.sum(probability_matrix, axis=2) == 1).all()# not working exactly= min 0.9999999..., max =1
 
-stations = pd.read_excel(home_folder + 'AllStations_Tara.xls', header=1)
-atlantic_lon_index = np.where(np.logical_and(stations['Longitude'] >= -100, stations['Longitude'] <= 20))
-
-atlantic_lon = np.take(stations['Longitude'], atlantic_lon_index[0])
-atlantic_lat = np.take(stations['Latitude'], atlantic_lon_index[0])
-
-stations_hex = get_hex_id(atlantic_lon, atlantic_lat)
-
-atlantic_hex, ind_1, ind2 = np.intersect1d(stations_hex, master_hexId, return_indices=True)
-# within atlantic(104 unique hex), only 3 hex Ids have 2 stations mapped to each: /task1/Stations_in_same_H3Grids.png
-
 # Matrix Analysis 3: Get average of connectivity over all the months.
 avg_adjacency_matrix = np.average(probability_matrix, axis=0)
 np.save(home_folder + 'avg_adjacency_matrix.npy', avg_adjacency_matrix)
-
-# temp = avg_adjacency_matrix[ind2, :]
-# avg_adMatrix_stations = temp[:, ind2]
-
-# endregion
 
 print(max(avg_adjacency_matrix[0]))
 print(max(avg_adjacency_matrix[1]))
