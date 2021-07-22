@@ -3,11 +3,10 @@ from glob import glob
 import xarray as xr
 import h3
 import pandas as pd
-from time import time
 
 
 def get_hex_id(lons, lats):
-    return [h3.geo_to_h3(y, x, hex_resolution) for x, y in zip(lons, lats)]
+    return np.array([h3.geo_to_h3(y, x, hex_resolution) for x, y in zip(lons, lats)])
 
 
 def get_particle_info(ds, t):
@@ -36,12 +35,12 @@ home_folder = '/Users/dmanral/Desktop/Analysis/TARA/Task4/'
 temp_file = home_folder + '/tara_res5_01/FullTara_Res5_TS_Jun2014_dt600.nc'
 temp_ds = xr.open_dataset(temp_file).load()
 hex_resolution = 3
-t_particleId, t_hexId = get_particle_info(temp_ds, np.min(temp_ds['time'][:, 0].values))
-
-master_hexId = pd.unique(t_hexId)
-no_particles = len(t_particleId)
+ini_particleId, ini_hexId = get_particle_info(temp_ds, np.min(temp_ds['time'][:, 0].values))
+master_hexId = pd.unique(ini_hexId)
+no_particles = len(ini_particleId)
 master_particleId = np.arange(0, no_particles, 1)
-assert (master_particleId == t_particleId).all()
+# essential check to ensure that the same order of master list is used
+assert np.array_equal(pd.unique(ini_hexId), master_hexId)
 temp_ds.close()
 
 run_for_months = 12
@@ -60,36 +59,32 @@ for mon_index, mon in zip(np.arange(0, run_for_months, 1), months[:run_for_month
     monthly_files = sorted(glob(home_folder + '/tara_res5_01/FullTara_Res5_TS_{0}*_dt600.nc'.format(mon)))
     for file, year in zip(monthly_files, years):
         ds = xr.open_dataset(file).load()
-        t_min, t_max = (np.min(ds['time'][:, 0].values), np.max(ds['time'][:, 1].values))
-        ini_particleId, ini_hexId = get_particle_info(ds, t_min)
+        t_max = np.max(ds['time'][:, 1].values)
         final_particleId, final_hexId = get_particle_info(ds, t_max)
-        # essential check to ensure that the same order of master list is used
-        assert np.array_equal(pd.unique(ini_hexId), master_hexId)
         ds.close()
-        st = time()
-        print('timer started: {0} {1}'.format(mon, year))
-        # create Transition Matrix for particles that were not deleted
-        for i in range(len(final_particleId)):
-            source_index = np.where(master_hexId == ini_hexId[final_particleId[i]])[0]
-            assert len(source_index) == 1
-            destination_index = np.where(master_hexId == final_hexId[i])[0]
 
-            if len(destination_index) == 0:
-                # update the value in the second-last column- particle moved to a new hex in model domain
-                full_transition_matrix[mon_index, source_index, total_no_hex] += 1
-            else:
-                assert len(destination_index) == 1
-                full_transition_matrix[mon_index, source_index, destination_index] += 1
-        ed = time()
-        print('TM- not deleted: ', (ed - st) / 60)
+        # create Transition Matrix for particles that were not deleted
+        # return indexes in order of final particle id and Index in master hex list
+        source_index_all = np.where(np.take(ini_hexId, final_particleId)[:, None] == master_hexId[None, :]) # here all should be present, based on sources hex ids
+        destination_index_all = np.where(final_hexId[:, None] == master_hexId[None, :])
+
+        # if found, particle moved to a known grid- most of the elements are in this category.
+        s_index = np.take(source_index_all[1], destination_index_all[0])
+        for i in range(len(s_index)):
+            full_transition_matrix[mon_index, s_index[i], destination_index_all[1][i]] += 1
+
+        # for all the  final hex ids not found, that means moved to a new grid.
+        new_grid_index = np.setdiff1d(source_index_all[0], destination_index_all[0])
+        for i in range(len(new_grid_index)):
+            full_transition_matrix[mon_index, source_index_all[1][i], total_no_hex] += 1
+
         # update deleted particles- last column
         deleted_particleId = np.setdiff1d(master_particleId, final_particleId)
-        for d in deleted_particleId:
-            deleted_index = np.where(master_hexId == ini_hexId[d])[0]
-            assert len(deleted_index) == 1
-            full_transition_matrix[mon_index, deleted_index, total_no_hex + 1] += 1
-        ed2 = time()
-        print('TM- deleted: ', (ed2 - ed) / 60)
+        # source: https://www.py4u.net/discuss/193014 Answer 2: Numpy broadcasting
+        deleted_index_all = np.where(master_hexId[:, None] == np.take(ini_hexId, deleted_particleId)[None, :])[0]
+        deleted_index, ind_count = np.unique(deleted_index_all, return_counts=True)
+        for i in range(len(deleted_index)):
+            full_transition_matrix[mon_index, deleted_index[i], total_no_hex + 1] += ind_count[i]
 
     # month wise statss
     mon_sum = np.sum(full_transition_matrix[mon_index])
@@ -99,8 +94,6 @@ for mon_index, mon in zip(np.arange(0, run_for_months, 1), months[:run_for_month
     print("Deleted count from matrix: ", np.sum(full_transition_matrix[mon_index, :, total_no_hex + 1]))
     assert (np.sum(full_transition_matrix[mon_index, :, :], axis=2) == per_month_simulations).all()
     static = np.where(full_transition_matrix[mon_index, :, :] == per_month_simulations)
-    # print(static[1])
-    # print(static[2])
     print("Maximum Sum 10: ", len(static[0]))
     cnt_same = np.count_nonzero(
         [full_transition_matrix[mon_index, i, i] == per_month_simulations for i in range(total_no_hex)])
@@ -115,5 +108,3 @@ assert (np.round(np.sum(probability_matrix, axis=2), 4) == 1).all()
 # Matrix Analysis 3: Get average of connectivity over all the months.
 avg_adjacency_matrix = np.average(probability_matrix, axis=0)
 np.save(home_folder + 'Annual_Average_adjacency_matrix_Res5.npy', avg_adjacency_matrix)
-print(max(avg_adjacency_matrix[0]))
-print(max(avg_adjacency_matrix[1]))
