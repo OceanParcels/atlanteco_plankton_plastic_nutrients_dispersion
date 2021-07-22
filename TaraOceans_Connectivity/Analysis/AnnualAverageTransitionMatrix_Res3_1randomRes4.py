@@ -18,13 +18,6 @@ def get_particle_info(ds, t):
     return particle_id, get_hex_id(all_lons, all_lats)
 
 
-def verify_date(date, day, month, yr):
-    d = pd.to_datetime(date)
-    if d.day == day and d.month == month and d.year == yr:
-        return date
-    raise ValueError
-
-
 home_folder = '/Users/dmanral/Desktop/Analysis/TARA/Task3_TM/'
 master_particleId = np.arange(0, 8114, 1)
 seed_points = pd.read_csv(home_folder + 'Nemo_H3Release_LatLon.csv')
@@ -36,7 +29,7 @@ total_no_particles = len(master_hexId)
 full_transition_matrix = np.zeros((run_for_months, total_no_particles, total_no_particles + 2))
 
 months = np.array(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
-years = [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018]
+years = np.arange(2009, 2019, 1)
 # currently 10 for each year simulation, will change with more simulations
 per_month_simulations = 10
 hex_resolution = 3
@@ -49,21 +42,12 @@ for mon in months[:run_for_months]:
 
     for file, year in zip(monthly_files, years):
         ds = xr.open_dataset(file).load()
+        # follwoing code can be executed just once for all files- check that the order of particles is same in all releases
+        ini_particleId, ini_hexId = get_particle_info(ds, np.nanmin(ds['time'].values))
 
-        # ensure start date and end date are as expected
-        t_min = verify_date(np.nanmin(ds['time'].values), 1, mon_index + 1, year)
-        if mon_index < 11:
-            t_max = verify_date(np.nanmax(ds['time'].values), 1, mon_index + 2, year)
-        else:
-            if year != 2018:
-                t_max = verify_date(np.nanmax(ds['time'].values), 1, 1, year + 1)
-            else:
-                t_max = verify_date(np.nanmax(ds['time'].values), 31, mon_index + 1, year)
+        final_particleId, final_hexId = get_particle_info(ds, np.nanmax(ds['time'].values))
 
-        final_particleId, final_hexId = get_particle_info(ds, t_max)
-
-        # verify that the order of the initial hex_ids from the file is same as in the master hex_ids
-        ini_particleId, ini_hexId = get_particle_info(ds, t_min)
+        # verify that the order of the initial hex_ids from the file is same as in the master hex_ids      
         assert np.array_equal(ini_hexId, master_hexId)
 
         ds.close()
@@ -72,12 +56,12 @@ for mon in months[:run_for_months]:
         for i in range(len(final_particleId)):
             f_index = np.where(master_hexId == final_hexId[i])[0]
             if len(f_index) == 0:
-                # update the value in the last column
+                # update the value in the second last column- particle moved to a new grid
                 full_transition_matrix[mon_index, final_particleId[i], total_no_particles] += 1
             else:
                 full_transition_matrix[mon_index, final_particleId[i], f_index] += 1
 
-        # update deleted particles count- second-last column
+        # update deleted particles count- last column
         deleted = np.setdiff1d(master_particleId, final_particleId)
         full_transition_matrix[mon_index, deleted, total_no_particles + 1] += 1
 
@@ -105,6 +89,3 @@ assert (np.round(np.sum(probability_matrix, axis=2), 4) == 1).all()
 avg_adjacency_matrix = np.average(probability_matrix, axis=0)
 np.save(home_folder + 'avg_adjacency_matrix.npy', avg_adjacency_matrix)
 
-print(max(avg_adjacency_matrix[0]))
-print(max(avg_adjacency_matrix[1]))
-# print(advection_matrix)
