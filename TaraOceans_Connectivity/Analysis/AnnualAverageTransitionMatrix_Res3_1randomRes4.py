@@ -18,7 +18,7 @@ def get_particle_info(ds, t):
     return particle_id, get_hex_id(all_lons, all_lats)
 
 
-home_folder = '/Users/dmanral/Desktop/Analysis/TARA/Task3_TM/'
+home_folder = '/TARA/Task3_TM/'
 master_particleId = np.arange(0, 8114, 1)
 seed_points = pd.read_csv(home_folder + 'Nemo_H3Release_LatLon.csv')
 master_hexId = seed_points['Res3_HexId'].unique()
@@ -49,7 +49,6 @@ for mon in months[:run_for_months]:
 
         # verify that the order of the initial hex_ids from the file is same as in the master hex_ids      
         assert np.array_equal(ini_hexId, master_hexId)
-
         ds.close()
 
         # create Transition Matrix for particles that were not deleted
@@ -73,8 +72,6 @@ for mon in months[:run_for_months]:
     print("Deleted count from matrix: ", np.sum(full_transition_matrix[mon_index, :, total_no_particles + 1]))
     assert (np.sum(full_transition_matrix[mon_index, :, :], axis=2) == per_month_simulations).all()
     static = np.where(full_transition_matrix[mon_index, :, :] == 10)
-    print(static[1])
-    print(static[2])
     print("Maximum Sum 10: ", len(static[0]))
     cnt_same = np.count_nonzero([full_transition_matrix[mon_index, i, i] == 10 for i in range(total_no_particles)])
     print("Particles in same grid: ", cnt_same)

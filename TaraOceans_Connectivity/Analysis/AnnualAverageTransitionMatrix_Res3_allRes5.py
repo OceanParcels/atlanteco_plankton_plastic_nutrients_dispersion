@@ -25,7 +25,7 @@ def verify_date(date, day, month, yr):
     raise ValueError
 
 
-home_folder = '/Users/dmanral/Desktop/Analysis/TARA/Task4/'
+home_folder = ''/TARA/Task4/'
 # seed_points = pd.read_csv(home_folder + 'Nemo_H3Release_LatLon_Res5_bs36.csv')
 # no_particles = len(seed_points['Longitudes'])
 
