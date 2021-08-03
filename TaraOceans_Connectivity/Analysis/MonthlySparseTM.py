@@ -44,41 +44,38 @@ def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_ma
         rows = map_h3_to_mat[hex_t0].values
         cols = map_h3_to_mat[hex_t1_new].values
         transitions = np.ones((len(hex_t0)))
-        t_matrix = coo_matrix((transitions, (rows, cols)), shape=(no_grids, no_grids + 2))
-        t_matrix.sum_duplicates()
+
+        def get_coo_matrix(array):
+            return coo_matrix((array, (rows, cols)), shape=(no_grids, no_grids + 2)).sum_duplicates()
+
+        t_matrix = get_coo_matrix(transitions)
         trans_array = np.append(trans_array, t_matrix.data)
         rows_array = np.append(rows_array, t_matrix.row)
         cols_array = np.append(cols_array, t_matrix.col)
 
         # get min and max temperature data
         min_temperature, max_temperature = ds['min_temp'][:, -1].values, ds['max_temp'][:, -1].values
-        min_temp_matrix = coo_matrix((min_temperature, (rows, cols)), shape=(no_grids, no_grids + 2))
-        max_temp_matrix = coo_matrix((max_temperature, (rows, cols)), shape=(no_grids, no_grids + 2))
-        min_temp_matrix.sum_duplicates()
-        max_temp_matrix.sum_duplicates()
+        min_temp_matrix = get_coo_matrix(min_temperature)
+        max_temp_matrix = get_coo_matrix(max_temperature)
         min_temp_array = np.append(min_temp_array, min_temp_matrix.data)
         max_temp_array = np.append(max_temp_array, max_temp_matrix.data)
 
         # get min and max salinity data
         min_salinity, max_salinity = ds['min_sal'][:, -1].values, ds['max_sal'][:, -1].values
-        min_sal_matrix = coo_matrix((min_salinity, (rows, cols)), shape=(no_grids, no_grids + 2))
-        max_sal_matrix = coo_matrix((max_salinity, (rows, cols)), shape=(no_grids, no_grids + 2))
-        min_sal_matrix.sum_duplicates()
-        max_sal_matrix.sum_duplicates()
+        min_sal_matrix = get_coo_matrix(min_salinity)
+        max_sal_matrix = get_coo_matrix(max_salinity)
         min_sal_array = np.append(min_sal_array, min_sal_matrix.data)
         max_sal_array = np.append(max_sal_array, max_sal_matrix.data)
 
+    def get_csr_matrix(array):
+        return coo_matrix((array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr().sum_duplicates()
+
     # collate entries for same row and column pair
-    mon_trans_matrix = coo_matrix((trans_array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr()
-    mon_trans_matrix.sum_duplicates()
-    mon_min_temp_matrix = coo_matrix((min_temp_array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr()
-    mon_min_temp_matrix.sum_duplicates()
-    mon_max_temp_matrix = coo_matrix((max_temp_array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr()
-    mon_max_temp_matrix.sum_duplicates()
-    mon_min_sal_matrix = coo_matrix((min_sal_array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr()
-    mon_min_sal_matrix.sum_duplicates()
-    mon_max_sal_matrix = coo_matrix((max_sal_array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr()
-    mon_max_sal_matrix.sum_duplicates()
+    mon_trans_matrix = get_csr_matrix(trans_array)
+    mon_min_temp_matrix = get_csr_matrix(min_temp_array)
+    mon_max_temp_matrix = get_csr_matrix(max_temp_array)
+    mon_min_sal_matrix = get_csr_matrix(min_sal_array)
+    mon_max_sal_matrix = get_csr_matrix(max_sal_array)
 
     # verify before exporting data
     # order of saving data is same for all fields
