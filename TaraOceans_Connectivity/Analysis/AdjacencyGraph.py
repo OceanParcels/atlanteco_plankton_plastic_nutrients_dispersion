@@ -3,10 +3,7 @@ from scipy.sparse import load_npz
 import numpy as np
 
 
-def create_simple_graph(file):
-    adjacency_matrix = load_npz(file).todense()
-    nnz_index = adjacency_matrix.nonzero()
-    weights = adjacency_matrix[nnz_index]
+def get_base_graph(nnz_index, weights):
     g = Graph()
     g.add_edge_list(np.transpose(nnz_index))
     ew = g.new_edge_property('double')
@@ -19,7 +16,14 @@ def create_simple_graph(file):
     return g
 
 
-def create_temp_sal_graph(adjacency_file, min_temp_file, max_temp_file, temp_range, min_sal_file, max_sal_file):
+def create_simple_graph(file):
+    adjacency_matrix = load_npz(file).todense()
+    nnz_index = adjacency_matrix.nonzero()
+    weights = adjacency_matrix[nnz_index]
+    return get_base_graph(nnz_index, weights)
+
+
+def create_temp_range_graph(adjacency_file, min_temp_file, max_temp_file, temp_range):
     adjacency_matrix = load_npz(adjacency_file).todense()
     max_temp_matrix = load_npz(max_temp_file)
     min_temp_matrix = load_npz(min_temp_file)
@@ -31,16 +35,32 @@ def create_temp_sal_graph(adjacency_file, min_temp_file, max_temp_file, temp_ran
     min_temp = min_temp_matrix.todense()[nnz_index]
     max_temp = max_temp_matrix.todense()[nnz_index]
 
-    g = Graph()
-    g.add_edge_list(np.transpose(nnz_index))
-    ew = g.new_edge_property('double')
-    ew.a = -np.log(weights)
-    g.ep['weight'] = ew
+    g = get_base_graph(nnz_index, weights)
+    min_t = g.new_edge_property('double')
+    min_t.a = min_temp
+    g.ep['min_t'] = min_t
+    max_t = g.new_edge_property('double')
+    max_t.a = max_temp
+    g.ep['max_t'] = max_t
+    return g
 
-    eprob = g.new_edge_property('double')
-    eprob.a = weights
-    g.ep['probability'] = eprob
 
+def create_temp_min_max_graph(adjacency_file, min_temp_file, max_temp_file, min_temp_accept, max_temp_accept):
+    adjacency_matrix = load_npz(adjacency_file).todense()
+    min_temp_matrix = load_npz(min_temp_file).todense()
+    max_temp_matrix = load_npz(max_temp_file).todense()
+
+    min_temp_filter = np.where(min_temp_matrix < min_temp_accept, 0, min_temp_matrix)
+    max_temp_filter = np.where(max_temp_matrix > max_temp_accept, 0, max_temp_matrix)
+    filtered_matrix = np.multiply(min_temp_filter, max_temp_filter)
+
+    nnz_index = filtered_matrix.nonzero()
+    weights = adjacency_matrix[nnz_index]
+    min_temp = min_temp_matrix[nnz_index]
+    max_temp = max_temp_matrix[nnz_index]
+    print(np.min(min_temp), np.max(max_temp))
+
+    g = get_base_graph(nnz_index, weights)
     min_t = g.new_edge_property('double')
     min_t.a = min_temp
     g.ep['min_t'] = min_t
@@ -54,6 +74,11 @@ def get_most_probable_path(g, s, d):
     vlist, elist = shortest_path(g, s, d, weights=g.ep['weight'])
     path = [int(v) for v in vlist]
     print(path)
+    try:
+        temp_range = [(g.ep['min_t'][e], g.ep['max_t'][e]) for e in elist]
+        print(np.around(temp_range, 2))
+    except KeyError:
+        print("Temperature not included in the graph")
     print(len(path))
     return path
 
@@ -61,15 +86,19 @@ def get_most_probable_path(g, s, d):
 def get_shortest_path(g, s, d):
     vlist, elist = shortest_path(g, s, d)
     path = [int(v) for v in vlist]
-    temp_range = [(g.ep['min_t'][e], g.ep['max_t'][e]) for e in elist]
     print(path)
-    print(np.around(temp_range, 2))
+    try:
+        temp_range = [(g.ep['min_t'][e], g.ep['max_t'][e]) for e in elist]
+        print(np.around(temp_range, 2))
+    except KeyError:
+        print("Temperature not included in the graph")
     print(len(path))
     return path
 
 
 def get_shortest_paths_subset(g, s, d, path_length):
     cnt = count_shortest_paths(g, s, d)
+    print('Total paths: ', cnt)
     if cnt > 100:
         count = 100
     else:
