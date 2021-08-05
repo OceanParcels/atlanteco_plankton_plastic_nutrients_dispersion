@@ -7,7 +7,7 @@ from scipy.sparse import coo_matrix
 from time import time
 from sklearn.preprocessing import normalize
 
-home_folder = '/TARA/'
+home_folder = '/TARA/Task4/'
 export_folder = home_folder + 'ProcessedTM/'
 NEW = 'new'
 DEL = 'deleted'
@@ -17,6 +17,12 @@ hex_res = 3
 
 def get_hex_id(lons, lats):
     return np.array([h3.geo_to_h3(y, x, hex_res) for x, y in zip(lons, lats)])
+
+
+def get_coo_matrix(array, rows, cols, no_grids):
+    matrix = coo_matrix((array, (rows, cols)), shape=(no_grids, no_grids + 2))
+    matrix.sum_duplicates()
+    return matrix
 
 
 def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_mat, no_particles, no_grids):
@@ -45,37 +51,31 @@ def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_ma
         cols = map_h3_to_mat[hex_t1_new].values
         transitions = np.ones((len(hex_t0)))
 
-        def get_coo_matrix(array):
-            return coo_matrix((array, (rows, cols)), shape=(no_grids, no_grids + 2)).sum_duplicates()
-
-        t_matrix = get_coo_matrix(transitions)
+        t_matrix = get_coo_matrix(transitions, rows, cols, no_grids)
         trans_array = np.append(trans_array, t_matrix.data)
         rows_array = np.append(rows_array, t_matrix.row)
         cols_array = np.append(cols_array, t_matrix.col)
 
         # get min and max temperature data
         min_temperature, max_temperature = ds['min_temp'][:, -1].values, ds['max_temp'][:, -1].values
-        min_temp_matrix = get_coo_matrix(min_temperature)
-        max_temp_matrix = get_coo_matrix(max_temperature)
+        min_temp_matrix = get_coo_matrix(min_temperature, rows, cols, no_grids)
+        max_temp_matrix = get_coo_matrix(max_temperature, rows, cols, no_grids)
         min_temp_array = np.append(min_temp_array, min_temp_matrix.data)
         max_temp_array = np.append(max_temp_array, max_temp_matrix.data)
 
         # get min and max salinity data
         min_salinity, max_salinity = ds['min_sal'][:, -1].values, ds['max_sal'][:, -1].values
-        min_sal_matrix = get_coo_matrix(min_salinity)
-        max_sal_matrix = get_coo_matrix(max_salinity)
+        min_sal_matrix = get_coo_matrix(min_salinity, rows, cols, no_grids)
+        max_sal_matrix = get_coo_matrix(max_salinity, rows, cols, no_grids)
         min_sal_array = np.append(min_sal_array, min_sal_matrix.data)
         max_sal_array = np.append(max_sal_array, max_sal_matrix.data)
 
-    def get_csr_matrix(array):
-        return coo_matrix((array, (rows_array, cols_array)), shape=(no_grids, no_grids + 2)).tocsr().sum_duplicates()
-
     # collate entries for same row and column pair
-    mon_trans_matrix = get_csr_matrix(trans_array)
-    mon_min_temp_matrix = get_csr_matrix(min_temp_array)
-    mon_max_temp_matrix = get_csr_matrix(max_temp_array)
-    mon_min_sal_matrix = get_csr_matrix(min_sal_array)
-    mon_max_sal_matrix = get_csr_matrix(max_sal_array)
+    mon_trans_matrix = get_coo_matrix(trans_array, rows_array, cols_array, no_grids).tocsr()
+    mon_min_temp_matrix = get_coo_matrix(min_temp_array, rows_array, cols_array, no_grids).tocsr()
+    mon_max_temp_matrix = get_coo_matrix(max_temp_array, rows_array, cols_array, no_grids).tocsr()
+    mon_min_sal_matrix = get_coo_matrix(min_sal_array, rows_array, cols_array, no_grids).tocsr()
+    mon_max_sal_matrix = get_coo_matrix(max_sal_array, rows_array, cols_array, no_grids).tocsr()
 
     # verify before exporting data
     # order of saving data is same for all fields
@@ -111,7 +111,7 @@ def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_ma
     # export all matrices to npz file
     np.savez_compressed(export_folder + 'CSR_{0}.npz'.format(mon), transprob=norm_matrix.data,
                         mintemp=avg_min_temp_per_grid, maxtemp=avg_max_temp_per_grid, minsal=avg_min_sal_per_grid,
-                        maxsal=avg_max_sal_per_grid, indices=mon_trans_matrix.indices, indptr=mon_trans_matrix.indptr)
+                        maxsal=avg_max_sal_per_grid, indices=norm_matrix.indices, indptr=norm_matrix.indptr)
     t_mon2 = time()
     print("analysis time: ", t_mon2 - t_mon1)
 
