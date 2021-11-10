@@ -7,8 +7,8 @@ from scipy.sparse import coo_matrix
 from time import time
 from sklearn.preprocessing import normalize
 
-home_folder = '/TARA/Task4/'
-export_folder = home_folder + 'ProcessedTM/'
+home_folder = '/Users/dmanral/Desktop/Analysis/TARA/'
+export_folder = home_folder + 'Task5_trahms/ProcessedTM/'
 NEW = 'new'
 DEL = 'deleted'
 SIM_PER_MONTH = 10
@@ -27,7 +27,8 @@ def get_coo_matrix(array, rows, cols, no_grids):
 
 def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_mat, no_particles, no_grids):
     t_mon1 = time()
-    files = sorted(glob(home_folder + 'tara_res5_01/FullTara_Res5_TS_{0}*_dt600.nc'.format(mon)))
+    # files = sorted(glob(home_folder + 'tara_data/FullAtlantic_2D_01{0}*_1month.nc'.format(mon)))
+    files = sorted(glob(home_folder + 'Task4/tara_res5_01/FullTara_Res5_TS_{0}*_dt600.nc'.format(mon)))
     trans_array = np.empty(0)
     min_temp_array = np.empty(0)
     max_temp_array = np.empty(0)
@@ -72,10 +73,23 @@ def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_ma
 
     # collate entries for same row and column pair
     mon_trans_matrix = get_coo_matrix(trans_array, rows_array, cols_array, no_grids).tocsr()
+    print('Min/Max SUM of Transitions: {0} / {1}'.format(np.min(mon_trans_matrix.data), np.max(mon_trans_matrix.data)))
+
     mon_min_temp_matrix = get_coo_matrix(min_temp_array, rows_array, cols_array, no_grids).tocsr()
+    print('Min/Max SUM of Minimum Temperature: {0} / {1}'.format(np.min(mon_min_temp_matrix.data),
+                                                                 np.max(mon_min_temp_matrix.data)))
+
     mon_max_temp_matrix = get_coo_matrix(max_temp_array, rows_array, cols_array, no_grids).tocsr()
+    print('Min/Max SUM of Maximum Temperature: {0} / {1}'.format(np.min(mon_max_temp_matrix.data),
+                                                                 np.max(mon_max_temp_matrix.data)))
+
     mon_min_sal_matrix = get_coo_matrix(min_sal_array, rows_array, cols_array, no_grids).tocsr()
+    print('Min/Max SUM of Minimum Salinity: {0} / {1}'.format(np.min(mon_min_sal_matrix.data),
+                                                              np.max(mon_min_sal_matrix.data)))
+
     mon_max_sal_matrix = get_coo_matrix(max_sal_array, rows_array, cols_array, no_grids).tocsr()
+    print('Min/Max SUM of Maximum Salinity: {0} / {1}'.format(np.min(mon_max_sal_matrix.data),
+                                                              np.max(mon_max_sal_matrix.data)))
 
     # verify before exporting data
     # order of saving data is same for all fields
@@ -97,33 +111,53 @@ def get_all_matrices_for_month(mon, master_all_hex_t0, hex_indices, map_h3_to_ma
     assert np.array_equal(norm_matrix.indptr, mon_min_temp_matrix.indptr)
     assert np.array_equal(norm_matrix.indices, mon_max_sal_matrix.indices)
 
+    # Store Average or totoal number of transitions
     # compute the average min and max T/S for each grid cell
     def get_avg_field_per_grid(data, f_type, field):
         avg_field = data / mon_trans_matrix.data
         print('Min/Max average {0} {1}: {2} / {3}'.format(f_type, field, np.min(avg_field), np.max(avg_field)))
         return avg_field
 
-    avg_min_temp_per_grid = get_avg_field_per_grid(mon_min_temp_matrix.data, 'minimum', 'temperature')
-    avg_max_temp_per_grid = get_avg_field_per_grid(mon_max_temp_matrix.data, 'maximum', 'temperature')
-    avg_min_sal_per_grid = get_avg_field_per_grid(mon_min_sal_matrix.data, 'minimum', 'salinity')
-    avg_max_sal_per_grid = get_avg_field_per_grid(mon_max_sal_matrix.data, 'maximum', 'salinity')
-
-    # export all matrices to npz file
-    np.savez_compressed(export_folder + 'CSR_{0}.npz'.format(mon), transprob=norm_matrix.data,
-                        mintemp=avg_min_temp_per_grid, maxtemp=avg_max_temp_per_grid, minsal=avg_min_sal_per_grid,
-                        maxsal=avg_max_sal_per_grid, indices=norm_matrix.indices, indptr=norm_matrix.indptr)
+    # Set option
+    option = 2
+    if option == 1:
+        avg_min_temp_per_grid = get_avg_field_per_grid(mon_min_temp_matrix.data, 'minimum', 'temperature')
+        avg_max_temp_per_grid = get_avg_field_per_grid(mon_max_temp_matrix.data, 'maximum', 'temperature')
+        avg_min_sal_per_grid = get_avg_field_per_grid(mon_min_sal_matrix.data, 'minimum', 'salinity')
+        avg_max_sal_per_grid = get_avg_field_per_grid(mon_max_sal_matrix.data, 'maximum', 'salinity')
+        # export all matrices to npz file
+        np.savez_compressed(export_folder + 'CSR_{0}.npz'.format(mon), transprob=norm_matrix.data,
+                            mintemp=avg_min_temp_per_grid, maxtemp=avg_max_temp_per_grid, minsal=avg_min_sal_per_grid,
+                            maxsal=avg_max_sal_per_grid, indices=norm_matrix.indices, indptr=norm_matrix.indptr)
+    elif option == 2:
+        np.savez_compressed(export_folder + 'Sum_CSR_{0}.npz'.format(mon),
+                            transprob=mon_trans_matrix.data,
+                            mintemp=mon_min_temp_matrix.data,
+                            maxtemp=mon_max_temp_matrix.data,
+                            minsal=mon_min_sal_matrix.data,
+                            maxsal=mon_max_sal_matrix.data,
+                            indices=mon_trans_matrix.indices,
+                            indptr=mon_trans_matrix.indptr)
+    else:
+        raise ValueError('option value is incorrect')
+    # np.savez_compressed(export_folder + 'CSR_{0}.npz'.format(mon), transprob=norm_matrix.data,
+    #                     indices=norm_matrix.indices, indptr=norm_matrix.indptr)
     t_mon2 = time()
     print("analysis time: ", t_mon2 - t_mon1)
 
 
 def main():
     # prepare a master hex list from a random file from the final dataset
-    temp_ds = xr.open_dataset(np.random.choice(glob(home_folder + '/tara_res5_01/FullTara_Res5_TS_*'))).load()
+    temp_ds = xr.open_dataset(np.random.choice(glob(home_folder + 'Task4/tara_res5_01/FullTara_Res5_TS_*'))).load()
+    # temp_ds = xr.open_dataset(np.random.choice(glob(home_folder + 'tara_data/FullAtlantic_2D_01*'))).load()
     master_all_hex_t0 = get_hex_id(temp_ds['lon'][:, 0].values, temp_ds['lat'][:, 0].values)
     temp_ds.close()
-
     no_particles = len(master_all_hex_t0)
     master_uni_hex = np.unique(master_all_hex_t0)
+
+    # master_uni_hex = np.load(home_folder + 'Task5_trahms/MasterHexList.npy').tolist()
+    # no_particles = 377583
+
     no_grids = len(master_uni_hex)
 
     hex_indices = np.append(master_uni_hex, (NEW, DEL))

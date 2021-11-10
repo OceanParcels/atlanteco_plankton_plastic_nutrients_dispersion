@@ -16,6 +16,13 @@ def compute_grid_annual_average(matrix, matrix_type):
     avg_matrix = np.average(matrix, axis=0)
     print(matrix_type, np.min(avg_matrix), np.max(avg_matrix))
     save_npz(home_folder + 'Annual_Avg_{0}_csr.npz'.format(matrix_type), csr_matrix(avg_matrix))
+    
+
+def compute_grid_nnz_average(matrix, nnz_count_matrix, matrix_type):
+    sum_matrix = np.sum(matrix, axis=0)
+    avg_matrix = sum_matrix / nnz_count_matrix
+    print(matrix_type, np.nanmin(avg_matrix), np.nanmax(avg_matrix))
+    save_npz(home_folder + 'Annual_Avg_{0}_csr.npz'.format(matrix_type), csr_matrix(avg_matrix))
 
 
 def main():
@@ -46,10 +53,12 @@ def main():
     compute_grid_annual_average(monthly_full_trans_prob, 'FullAdjacency')
     # remaining without the new column(8245) and deleted(8246)
     compute_grid_annual_average(monthly_full_trans_prob[:, :, :no_grids], 'DomainAdjacency')
-    compute_grid_annual_average(monthly_full_min_temp[:, :, :no_grids], 'MinTemperature')
-    compute_grid_annual_average(monthly_full_max_temp[:, :, :no_grids], 'MaxTemperature')
-    compute_grid_annual_average(monthly_full_min_sal[:, :, :no_grids], 'MinSalinity')
-    compute_grid_annual_average(monthly_full_max_sal[:, :, :no_grids], 'MaxSalinity')
+    nnz_count_matrix = np.count_nonzero(monthly_full_trans_prob[:, :, :no_grids], axis=0)
+    nnz_count_matrix[nnz_count_matrix == 0] = 1
+    compute_grid_nnz_average(monthly_full_min_temp[:, :, :no_grids], nnz_count_matrix, 'MinTemperature')
+    compute_grid_nnz_average(monthly_full_max_temp[:, :, :no_grids], nnz_count_matrix, 'MaxTemperature')
+    compute_grid_nnz_average(monthly_full_min_sal[:, :, :no_grids], nnz_count_matrix, 'MinSalinity')
+    compute_grid_nnz_average(monthly_full_max_sal[:, :, :no_grids], nnz_count_matrix, 'MaxSalinity')
 
 
 if __name__ == '__main__':
