@@ -6,22 +6,37 @@ import pandas as pd
 from parcels.tools.statuscodes import ErrorCode
 
 
-data_path = '/data/oceanparcels/input_data/NEMO16_CMCC/'
-mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
+data_path = '/data/oceanparcels/input_data/NEMO-MEDUSA/ORCA025-N006/'
+mesh_mask = data_path + 'domain/coordinates.nc'
 
-ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_2018*_U.nc'))
-vfiles =  sorted(glob(data_path + 'ROMEO.01_1d_vo_2018*_V.nc'))
+ufiles =  sorted(glob(data_path + 'means/ORCA025-N06_2015*d05U.nc'))
+vfiles =  sorted(glob(data_path + 'means/ORCA025-N06_2015*d05V.nc'))
 
-filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask,'depth': ufiles[0], 'data': ufiles},
-             'V': {'lon': mesh_mask, 'lat': mesh_mask,'depth': ufiles[0], 'data': vfiles}}
-
+filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': ufiles},
+             'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': vfiles}
+            }
 variables = {'U': 'uo',
              'V': 'vo'}
 
-dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}
+dimensions = {'U': {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'},
+              'V': {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}}
 
-simulation_start = datetime(2018, 1, 1, 12, 0, 0)
-simulation_end = datetime(2018, 12, 31, 12, 0, 0)
+# filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': ufiles},
+#              'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': vfiles}}
+
+# filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'data': ufiles},
+#              'V': {'lon': mesh_mask, 'lat': mesh_mask, 'data': vfiles}}
+
+# variables = {'U': 'uo',
+#              'V': 'vo'}
+
+# # dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}
+
+# dimensions = {'U': {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'},
+#               'V': {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}}
+
+simulation_start = datetime(2015, 1, 3, 12, 0, 0)
+simulation_end = datetime(2015, 12, 29, 12, 0, 0)
 
 u_file = nc.Dataset(ufiles[0])
 ticks = u_file['time_counter'][:][0]
@@ -35,23 +50,26 @@ modeldata_end = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
 assert simulation_end <= modeldata_end
 
-# fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize=False)
+fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize=False)
 
-chs = {'time': ('time_counter', 365), 'depth': ('depthu', 50), 'lat': ('gphif', 3896), 'lon': ('glamf', 1903)}
+# chs = {'time': ('time_counter', 31), 'depth': ('depthu', 50), 'lat': ('gphif', 3896), 'lon': ('glamf', 1903)}
 
-fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize=chs)
+# fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize=chs)
 print(fieldset.U.grid.__dict__)
 
-stations_data=pd.read_csv(r'UvAStations_Children.csv')
+# stations_data=pd.read_csv(r'UvAStations_Children.csv')
+stations_data=pd.read_csv(r'Stations.csv')
+
 
 pset = ParticleSet.from_list(fieldset=fieldset, 
                              pclass=JITParticle,
                              lon=stations_data['Longitude'],
                              lat=stations_data['Latitude'],
-                             depth=[100 for i in range(len(stations_data))],
-                             time=simulation_start)
+#                              depth=[0 for i in range(len(stations_data))],
+                             time=simulation_start,
+                            repeatdt=timedelta(days=5))
                             
-output_file = pset.ParticleFile(name="/scratch/dmanral/UvA_StationsRelease_1Yr_Res5_1Day_z100m.nc", outputdt=timedelta(days=1))
+output_file = pset.ParticleFile(name="/scratch/dmanral/Orca2015_UvA_StationsRelease_1Yr_rtdt5d_z0m.nc", outputdt=timedelta(days=5))
 
 
 def delete_particle(particle, fieldset, time):
