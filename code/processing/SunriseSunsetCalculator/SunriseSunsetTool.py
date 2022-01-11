@@ -1,4 +1,4 @@
-from core.sunrisesunset import AlmanacSunrise, AlmanacSunset
+from core.algorithm import AlmanacSunrise, AlmanacSunset
 from datetime import datetime, timedelta
 from math import floor,ceil
 import netCDF4 as nc
