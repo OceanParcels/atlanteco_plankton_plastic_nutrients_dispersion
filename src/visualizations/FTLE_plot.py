@@ -45,16 +45,23 @@ def dist_pairs_km(inlon1, inlon2, inlat1, inlat2):
 
 
 args = sys.argv
-assert len(args) == 4
+assert len(args) == 6
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
-Td = np.int32(args[3])
+r_depth = args[3]
+Td = np.int32(args[4])
+status = np.int32(args[5])
+
+if status == 0:
+    s = ''
+elif status == 1:
+    s = '3D_'
 
 home_folder = '/nethome/manra003/analysis/dispersion/'
 output_folder = home_folder+ 'outputs/ftle/'
 
-ds = xr.open_zarr(home_folder + 'simulations/Benguela_0625_401x257_{0}01-31_{1}.zarr'.format(mon_name, year))
+ds = xr.open_zarr(home_folder + 'simulations/{3}Benguela_0625_401x257_{0}01-31_{1}_{2}z.zarr'.format(mon_name, year, r_depth, s))
 
 output_dt = timedelta(days=1)  # from the simulation
 
@@ -64,19 +71,20 @@ time_range = np.arange(np.nanmin(ds['time'].values),
                        output_dt)
 print(time_range[0], time_range[out_index])
 
-coords = np.load(home_folder + 'Benguela_0625_401x257_release_points.npz')
+# coords = np.load(home_folder + 'Benguela_0625_401x257_release_points.npz')
+coords0, coords1 = 401, 257
 
 # grid_lons, grid_lats = np.meshgrid(coords['Longitude'], coords['Latitude'])
 grid_lons, grid_lats=ds['lon'][:, 0], ds['lat'][:, 0]
 
 # initial position
-x0 = np.reshape(ds['lon'][:, 0].data, (coords['Longitude'].shape[0], coords['Longitude'].shape[1]))
-y0 = np.reshape(ds['lat'][:, 0].data, (coords['Longitude'].shape[0], coords['Longitude'].shape[1]))
+x0 = np.reshape(ds['lon'][:, 0].data, (coords0, coords1))
+y0 = np.reshape(ds['lat'][:, 0].data, (coords0, coords1))
 
 # final position
 
-x1 = np.reshape(ds['lon'][:, out_index].data, (coords['Longitude'].shape[0], coords['Longitude'].shape[1]))
-y1 = np.reshape(ds['lat'][:, out_index].data, (coords['Longitude'].shape[0], coords['Longitude'].shape[1]))
+x1 = np.reshape(ds['lon'][:, out_index].data, (coords0, coords1))
+y1 = np.reshape(ds['lat'][:, out_index].data, (coords0, coords1))
 
 H = x0.shape[0]
 L = x1.shape[1]
@@ -108,7 +116,7 @@ for i in range(1, H - 1):  # 0, H-2
             FTLE_f[i][j] = f_value
 print(np.nanmin(FTLE_f), np.nanmax(FTLE_f))
 
-savename = output_folder + 'FTLE_BU_0625_401x257_{0}_{1}_{2}D.npz'.format(mon_name, year, Td)
+savename = output_folder + '{4}FTLE_BU_0625_401x257_{0}_{1}_{2}z_{3}D.npz'.format(mon_name, year, r_depth, Td, s)
 np.savez(savename, FTLE_f=FTLE_f)
 
 model_mask_file = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/GLOB16L98_mesh_mask_atlantic.nc'
@@ -133,10 +141,10 @@ ax.set_ylim(-40, -10)
 colormap = colors.ListedColormap(['gainsboro', 'white'])
 ax.pcolormesh(mask_lon[0, 1249:1750, 1499:], mask_lat[0, 1249:1750, 1499:], mask_land[0, 1250:1750, 1500:], cmap=colormap)
 
-plt.scatter(coords['Longitude'], coords['Latitude'], c=FTLE_f, cmap='RdBu_r', s=1)
-plt.title('FLTE computation for {0} {1} after {4} days of release\n Minimum: {2} and Maximum: {3}'.format(mon_name, year, np.round(np.nanmin(FTLE_f),2), np.round(np.nanmax(FTLE_f),2), Td))
+plt.scatter(grid_lons, grid_lats, c=FTLE_f, cmap='RdBu_r', s=1)
+plt.title('{5}FLTE computation for {0} {1} after {4} days of release\n Minimum: {2} and Maximum: {3}'.format(mon_name, year, np.round(np.nanmin(FTLE_f),2), np.round(np.nanmax(FTLE_f),2), Td, s))
 cbar = plt.colorbar()
 cbar.set_label("FTLE (1/days)")
 plt.clim(-0.4, 0.4)
 
-plt.savefig(output_folder + "Benguela_0625_401x257_{0}_{1}_{2}D.jpeg".format(mon_name, year, Td))
+plt.savefig(output_folder + "{4}Benguela_0625_401x257_{0}_{1}_{2}z_{3}D.jpeg".format(mon_name, year, r_depth, Td, s))

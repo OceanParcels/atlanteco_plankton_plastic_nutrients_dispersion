@@ -8,10 +8,11 @@ import sys
 import cartopy.crs as ccrs
 
 args = sys.argv
-assert len(args) == 3
+assert len(args) == 4
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
+r_depth = args[3]
 
 home_folder = '/nethome/manra003/analysis/dispersion/'
 
@@ -23,7 +24,7 @@ mask_lon = mask_ds['glamf'].values
 mask_lat = mask_ds['gphif'].values
 mask_land = mask_ds['tmask'].values[:,0,:,:]
 
-ds = xr.open_zarr(home_folder + 'simulations/Benguela_0625_401x257_{0}01-31_{1}.zarr'.format(mon_name, year))
+ds = xr.open_zarr(home_folder + 'simulations/Benguela_0625_401x257_{0}01-31_{1}_{2}z.zarr'.format(mon_name, year, r_depth))
 print(ds)
 
 custom_size=10
@@ -55,7 +56,7 @@ time_id = np.where(ds['time'] == time_range[0])
 scatter = ax.scatter(ds['lon'].values[time_id], ds['lat'].values[time_id], s=1, c='sandybrown')
 
 t = np.datetime_as_string(time_range[0], unit='m')
-title = ax.set_title('Particles at z = 0 m and time = ' + t)
+title = ax.set_title('Particles at z = ' + r_depth + 'm and time = ' + t)
 ax.set_xlim(3, 21)
 ax.set_ylim(-42, -13)
 
@@ -63,14 +64,14 @@ def animate(i):
     t = np.datetime_as_string(time_range[i], unit='m')
 
     time_id = np.where(ds['time'] == time_range[i])
-    title.set_text('Particles at z = 0 m and time = ' + t)
+    title.set_text('Particles at z = ' + r_depth + 'm and time = ' + t)
 
     scatter.set_offsets(np.c_[ds['lon'].values[time_id], ds['lat'].values[time_id]])
     
 
 size = len(time_range)
 anim = FuncAnimation(fig, animate, frames=size, interval=200)
-anim.save(home_folder + 'outputs/animations/Benguela_0625_401x257_{0}01-31_{1}.mp4'.format(mon_name, year))
+anim.save(home_folder + 'outputs/animations/Benguela_0625_401x257_{0}01-31_{1}_{2}z.mp4'.format(mon_name, year, r_depth))
 # endregion
 
 print('animation saved')
