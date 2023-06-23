@@ -6,8 +6,11 @@ from datetime import timedelta, datetime, date
 import numpy as np
 import sys
 
+import parcels
+print(parcels.__version__)
+
 args = sys.argv
-assert len(args) == 4
+assert len(args) == 5
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
@@ -20,11 +23,24 @@ elif r_depth == 100:
 else:
     raise ValueError('Depth indices have not been setup.')
 
+asc_sim = np.int32(args[4])  # FWD 1 or BKWD -1 
+assert asc_sim == 1 or asc_sim == -1
+
+def get_sim_dates():
+    if asc_sim == 1:
+        st_date = datetime(year, month_num, 1, 12, 0, 0)
+        en_date = datetime(year, month_num, 31, 12, 0, 0)
+        sim_order = 'Fwd'
+    else:
+        st_date = datetime(year, month_num, 31, 12, 0, 0)
+        en_date = datetime(year, month_num, 1, 12, 0, 0)
+        sim_order ='Bkwd'
+    return st_date, en_date, sim_order
+
 data_path = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/'
 mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
-simulation_start = datetime(year, month_num, 1, 12, 0, 0)
-simulation_end = datetime(year, month_num, 31, 12, 0, 0)
+simulation_start, simulation_end, sim_order = get_sim_dates()
 
 ufiles =  sorted(glob(data_path + 'ROMEO.01_1d_uo_{0}{1}*_U.nc'.\
                       format(simulation_start.strftime("%Y"), simulation_start.strftime("%m"))))
@@ -79,12 +95,12 @@ pset = ParticleSet.from_list(fieldset=fieldset,
                              depth=depth_arg,
                              time=simulation_start)
                             
-output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/3D_Benguela_0625_401x257_{0}01-31_{1}_{2}z.zarr".format(mon_name, year, r_depth), 
+output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}_3D_Benguela_0625_401x257_{1}01-31_{2}_{3}z.zarr".format(sim_order, mon_name, year, r_depth), 
                                 outputdt=timedelta(days=1))
 
 pset.execute(AdvectionRK4_3D,                
              runtime=timedelta(days=30),
-             dt=300,                       
+             dt=asc_sim * 300,                       
              output_file=output_file,
              recovery={ErrorCode.ErrorOutOfBounds: delete_particle})
 
