@@ -1,6 +1,6 @@
 """
 source: https://github.com/LauraGomezNavarro/OceanParcels_Lyapunov/blob/main/code/FTLE_func_test.py
-Author: Laura Gomez Navarro
+Author: Main code by Laura Gomez Navarro adapted by Darshika Manral
 """
 from math import sin, cos, sqrt, atan2, radians
 import numpy as np
@@ -10,6 +10,8 @@ from datetime import timedelta, date
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from matplotlib import colors
+from progressbar import progressbar
+import multiprocessing
 import sys
 
 def ftle_brunton_2009(J, Td):  # http://cwrowley.princeton.edu/papers/BruntonChaos09.pdf
@@ -45,23 +47,22 @@ def dist_pairs_km(inlon1, inlon2, inlat1, inlat2):
 
 
 args = sys.argv
-assert len(args) == 6
+assert len(args) == 7
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
 r_depth = args[3]
 Td = np.int32(args[4])
-status = np.int32(args[5])
+dim = args[5]
 
-if status == 0:
-    s = ''
-elif status == 1:
-    s = '3D_'
+asc_order= args[6]
 
 home_folder = '/nethome/manra003/analysis/dispersion/'
 output_folder = home_folder+ 'outputs/ftle/'
+file=home_folder + 'simulations/{0}_{1}_Benguela_0625_401x257_{2}01-31_{3}_{4}z.zarr'.format(asc_order, dim, mon_name, year, r_depth)
+print(file)
 
-ds = xr.open_zarr(home_folder + 'simulations/{3}Benguela_0625_401x257_{0}01-31_{1}_{2}z.zarr'.format(mon_name, year, r_depth, s))
+ds = xr.open_zarr(file)
 
 output_dt = timedelta(days=1)  # from the simulation
 
@@ -95,9 +96,13 @@ FTLE_f[:,:] = np.NaN
 J = np.empty([2, 2], float)
 
 # 1, H-1 --> to ignore bordersx for now
-for i in range(1, H - 1):  # 0, H-2
+for i in progressbar(range(1, H - 1)):  # 0, H-2
     for j in range(1, L - 1):  # 0, L-2
+        # pool = multiprocessing.Pool()
+        # pool = multiprocessing.Pool(processes=8)
+        
         J [:,:] = np.NaN
+
         J[0][0] = dist_pairs_km(x1[i, j], x1[i - 1, j], y1[i, j], y1[i - 1, j]) / dist_pairs_km(x0[i, j], x0[i - 1, j],
                                                                                                 y0[i, j], y0[i - 1, j])
         J[0][1] = dist_pairs_km(x1[i, j], x1[i, j - 1], y1[i, j], y1[i, j - 1]) / dist_pairs_km(x0[i, j], x0[i, j - 1],
@@ -116,7 +121,7 @@ for i in range(1, H - 1):  # 0, H-2
             FTLE_f[i][j] = f_value
 print(np.nanmin(FTLE_f), np.nanmax(FTLE_f))
 
-savename = output_folder + '{4}FTLE_BU_0625_401x257_{0}_{1}_{2}z_{3}D.npz'.format(mon_name, year, r_depth, Td, s)
+savename = output_folder + '{0}_{1}_FTLE_Benguela_0625_401x257_{2}01-31_{3}_{4}z.npz'.format(asc_order, dim, mon_name, year, r_depth)
 np.savez(savename, FTLE_f=FTLE_f)
 
 model_mask_file = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/GLOB16L98_mesh_mask_atlantic.nc'
@@ -136,15 +141,15 @@ gl.top_labels = False
 gl.right_labels = False
 gl.xlabel_style = {'size': custom_size, 'color': 'k'}
 gl.ylabel_style = {'size': custom_size, 'color': 'k'}
-ax.set_xlim(5, 21)
-ax.set_ylim(-40, -10)
+ax.set_xlim(10, 20)
+ax.set_ylim(-35, -20)
 colormap = colors.ListedColormap(['gainsboro', 'white'])
 ax.pcolormesh(mask_lon[0, 1249:1750, 1499:], mask_lat[0, 1249:1750, 1499:], mask_land[0, 1250:1750, 1500:], cmap=colormap)
 
 plt.scatter(grid_lons, grid_lats, c=FTLE_f, cmap='RdBu_r', s=1)
-plt.title('{5}FLTE computation for {0} {1} after {4} days of release\n Minimum: {2} and Maximum: {3}'.format(mon_name, year, np.round(np.nanmin(FTLE_f),2), np.round(np.nanmax(FTLE_f),2), Td, s))
+plt.title('{6} {5} FLTE computation for {0} {1} after {4} days of release\n Minimum: {2} and Maximum: {3}'.format(mon_name, year, np.round(np.nanmin(FTLE_f),2), np.round(np.nanmax(FTLE_f),2), Td, dim, asc_order))
 cbar = plt.colorbar()
 cbar.set_label("FTLE (1/days)")
 plt.clim(-0.4, 0.4)
 
-plt.savefig(output_folder + "{4}Benguela_0625_401x257_{0}_{1}_{2}z_{3}D.jpeg".format(mon_name, year, r_depth, Td, s))
+plt.savefig(output_folder + '{0}_{1}_FTLE_Benguela_0625_401x257_{2}01-31_{3}_{4}z.jpeg'.format(asc_order, dim, mon_name, year, r_depth))

@@ -8,11 +8,14 @@ import sys
 import cartopy.crs as ccrs
 
 args = sys.argv
-assert len(args) == 4
+assert len(args) == 6
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
 r_depth = args[3]
+dim = args[4]
+order = args[5]
+
 
 home_folder = '/nethome/manra003/analysis/dispersion/'
 
@@ -24,7 +27,7 @@ mask_lon = mask_ds['glamf'].values
 mask_lat = mask_ds['gphif'].values
 mask_land = mask_ds['tmask'].values[:,0,:,:]
 
-ds = xr.open_zarr(home_folder + 'simulations/Benguela_0625_401x257_{0}01-31_{1}_{2}z.zarr'.format(mon_name, year, r_depth))
+ds = xr.open_zarr(home_folder + 'simulations/{0}_{1}_Benguela_0625_401x257_{2}01-31_{3}_{4}z.zarr'.format(order, dim, mon_name, year, r_depth))
 print(ds)
 
 custom_size=10
@@ -71,7 +74,8 @@ def animate(i):
 
 size = len(time_range)
 anim = FuncAnimation(fig, animate, frames=size, interval=200)
-anim.save(home_folder + 'outputs/animations/Benguela_0625_401x257_{0}01-31_{1}_{2}z.mp4'.format(mon_name, year, r_depth))
+anim.save(home_folder + 'outputs/animations/{0}_{1}_Benguela_0625_401x257_{2}01-31_{3}_{4}z.mp4'.format(order, dim, mon_name, year, r_depth))
+
 # endregion
 
 print('animation saved')
