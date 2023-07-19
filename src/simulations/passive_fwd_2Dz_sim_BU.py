@@ -56,7 +56,7 @@ variables = {'U': 'uo',
 
 dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}
 
-fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': [min_ind, max_ind]}, chunksize=False)
+fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': [min_ind, max_ind], 'lon': range(1250,1903), 'lat': range(500,2000)}, chunksize=False)
 
 
 u_file = nc.Dataset(ufiles[0])
@@ -73,7 +73,7 @@ assert simulation_end <= modeldata_end
 
 fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize='auto')
 
-coords = np.load('/nethome/manra003/analysis/dispersion/Benguela_0625_401x257_release_points.npz')
+coords = np.load('/nethome/manra003/analysis/dispersion/Benguela_release_points_1601x1025_grid_015625.npz')
 
 def delete_particle(particle, fieldset, time):
     particle.delete()
@@ -89,10 +89,9 @@ pset = ParticleSet.from_list(fieldset=fieldset,
                              lat=coords['Latitude'],
                              depth=depth_arg,
                              time=simulation_start)
-                            
-output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}_2D_Benguela_0625_401x257_{1}01-31_{2}_{3}z.zarr".format(sim_order, mon_name, year, r_depth), 
+pset.populate_indices()                            
+output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}_2D_Benguela_1601x1025_{1}01-31_{2}_{3}z.zarr".format(sim_order, mon_name, year, r_depth), 
                                 outputdt=timedelta(days=1))
-
 pset.execute(AdvectionRK4,                
              runtime=timedelta(days=30),
              dt=asc_sim * 300,                       
