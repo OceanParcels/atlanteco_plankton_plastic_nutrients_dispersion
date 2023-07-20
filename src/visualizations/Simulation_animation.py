@@ -12,8 +12,9 @@ assert len(args) == 6
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
-r_depth = args[3]
-dim = args[4]
+exact_depth=args[3]
+release_depth = int(np.float32(exact_depth))
+mode = args[4]
 order = args[5]
 
 
@@ -27,7 +28,7 @@ mask_lon = mask_ds['glamf'].values
 mask_lat = mask_ds['gphif'].values
 mask_land = mask_ds['tmask'].values[:,0,:,:]
 
-ds = xr.open_zarr(home_folder + 'simulations/{0}_{1}_Benguela_0625_401x257_{2}01-31_{3}_{4}z.zarr'.format(order, dim, mon_name, year, r_depth))
+ds = xr.open_zarr(home_folder + 'simulations/Fwd_{0}_Luderitz_117x117_{1}01-31_{2}_{3}z_{4}days.zarr'.format(mode, mon_name, year, int(release_depth), 100))
 print(ds)
 
 custom_size=10
@@ -52,14 +53,14 @@ time_range = np.arange(np.nanmin(ds['time'].values),
 print('Time_range: ', len(time_range))
 
 # remove the first row and first column from the glamf/gphif to access points enclosed in the center
-ax.pcolormesh(mask_lon[0, 999:2000, 1499:], mask_lat[0, 999:2000, 1499:], mask_land[0, 1000:2000, 1500:], cmap=colormap)
+ax.pcolormesh(mask_lon[0, :2000, 605:], mask_lat[0, :2000, 605:], mask_land[0, 1:2000, 606:], cmap=colormap)
 
 # release locations
 time_id = np.where(ds['time'] == time_range[0])
 scatter = ax.scatter(ds['lon'].values[time_id], ds['lat'].values[time_id], s=1, c='sandybrown')
 
 t = np.datetime_as_string(time_range[0], unit='m')
-title = ax.set_title('Particles at z = ' + r_depth + 'm and time = ' + t)
+title = ax.set_title('Particles at z = ' + exact_depth + 'm and time = ' + t)
 ax.set_xlim(3, 21)
 ax.set_ylim(-42, -13)
 
@@ -67,14 +68,14 @@ def animate(i):
     t = np.datetime_as_string(time_range[i], unit='m')
 
     time_id = np.where(ds['time'] == time_range[i])
-    title.set_text('Particles at z = ' + r_depth + 'm and time = ' + t)
+    title.set_text('Particles at z = ' + exact_depth + 'm and time = ' + t)
 
     scatter.set_offsets(np.c_[ds['lon'].values[time_id], ds['lat'].values[time_id]])
     
 
 size = len(time_range)
 anim = FuncAnimation(fig, animate, frames=size, interval=200)
-anim.save(home_folder + 'outputs/animations/{0}_{1}_Benguela_0625_401x257_{2}01-31_{3}_{4}z.mp4'.format(order, dim, mon_name, year, r_depth))
+anim.save(home_folder + 'outputs/animations/Fwd_{0}_Luderitz_117x117_{1}01-31_{2}_{3}z_{4}days.mp4'.format(mode, mon_name, year, release_depth, 100))
 
 # endregion
 
