@@ -5,20 +5,23 @@
 
 from math import floor, sin, atan, tan, cos, asin, acos, pi
 
-
-def AlmanacSunrise(latitude, longitude, date_info):
-    # zenith angle- 90 degrees 50'
-    zenith = pi * (90 + 50 / 60) / 180
-
+def get_day_of_Year(date_info):
     day = date_info.day
     month = date_info.month
     year = date_info.year
-    # Step 1. calculate the day of the year
     # Explained here: https://astronomy.stackexchange.com/questions/2407/calculate-day-of-the-year-for-a-given-date
     N1 = floor(275 * month / 9)
     N2 = floor((month + 9) / 12)
     N3 = (1 + floor((year - 4 * floor(year / 4) + 2) / 3))
     N = N1 - (N2 * N3) + day - 30
+    return N
+
+def AlmanacSunrise(latitude, longitude, date_info):
+    # zenith angle- 90 degrees 50'
+    zenith = pi * (90 + 50 / 60) / 180
+
+    # Step 1. calculate the day of the year
+    N = get_day_of_Year(date_info)
 
     # Step 2. convert the longitude to hour value and calculate an approximate time
 
@@ -100,16 +103,8 @@ def AlmanacSunrise(latitude, longitude, date_info):
 def AlmanacSunset(latitude, longitude, date_info):
     zenith = pi * (90 + 50 / 60) / 180
 
-    day = date_info.day
-    month = date_info.month
-    year = date_info.year
     # Step 1. calculate the day of the year
-    # Explained here: https://astronomy.stackexchange.com/questions/2407/calculate-day-of-the-year-for-a-given-date
-    N1 = floor(275 * month / 9)
-    N2 = floor((month + 9) / 12)
-    N3 = (1 + floor((year - 4 * floor(year / 4) + 2) / 3))
-    N = N1 - (N2 * N3) + day - 30
-
+    N = get_day_of_Year(date_info)
     # Step 2. convert the longitude to hour value and calculate an approximate time
 
     lngHour = longitude / 15

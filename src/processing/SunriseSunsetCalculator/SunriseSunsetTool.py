@@ -14,7 +14,7 @@ max_lat = 61
 min_lon = -180
 max_lon = 181
 
-grid_size = 5
+grid_size = 2
 
 lons = np.arange(min_lon, max_lon, grid_size)  
 lats = np.arange(min_lat, max_lat, grid_size)  
@@ -24,10 +24,7 @@ print(lons)
 # TODO: remove land cells from the mesh
 
 current_date = start_date
-t_days=(end_date - start_date).days + 1
-increment_days=7
-n_days=ceil(t_days/increment_days)
-
+n_days = 365
 # create the dataset to create
 ds_sunrise = np.zeros([n_days, len(lats), len(lons)])
 ds_sunset = np.zeros([n_days, len(lats), len(lons)])
@@ -41,14 +38,16 @@ while day < n_days:
             sunset = AlmanacSunset(lats[j], lons[i], current_date)
             ds_sunrise[day, j, i] = sunrise
             ds_sunset[day, j, i] = sunset
-    current_date += timedelta(increment_days)
+    current_date += timedelta(days=1)
     day += 1
 
 print("sunrise, sunset calculated")
 
+# store the output of sunrise and sunset in a netcdf format to enable reading by parcels kernel.
+
 home_folder='/nethome/manra003/atlanteco_plankton_plastic_nutrients_dispersion/data/'
 
-ds = nc.Dataset(home_folder + 'SunriseTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
+ds = nc.Dataset(home_folder + 'SunriseTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunrise time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
@@ -65,7 +64,7 @@ sunrise_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
 times.calendar = 'standard'
 
-dates = [start_date + n * timedelta(days=increment_days) for n in range(n_days)]
+dates = [start_date + n * timedelta(days=1) for n in range(n_days)]
 times[:] = nc.date2num(dates, units=times.units, calendar=times.calendar)
 lats1[:] = lats
 lons1[:] = lons
@@ -73,7 +72,7 @@ sunrise_time[::] = ds_sunrise
 
 ds.close()
 
-ds = nc.Dataset(home_folder + 'SunsetTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
+ds = nc.Dataset(home_folder + 'SunsetTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunset time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
@@ -90,7 +89,7 @@ sunset_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
 times.calendar = 'standard'
 
-dates = [start_date + n * timedelta(days=increment_days) for n in range(n_days)]
+dates = [start_date + n * timedelta(days=1) for n in range(n_days)]
 times[:] = nc.date2num(dates, units=times.units, calendar=times.calendar)
 lats1[:] = lats
 lons1[:] = lons
