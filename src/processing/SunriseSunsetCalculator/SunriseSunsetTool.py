@@ -46,7 +46,9 @@ while day < n_days:
 
 print("sunrise, sunset calculated")
 
-ds = nc.Dataset('/scratch/manra003/SunriseTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
+home_folder='/nethome/manra003/atlanteco_plankton_plastic_nutrients_dispersion/data/'
+
+ds = nc.Dataset(home_folder + 'SunriseTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunrise time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
@@ -71,7 +73,7 @@ sunrise_time[::] = ds_sunrise
 
 ds.close()
 
-ds = nc.Dataset('/scratch/manra003/SunsetTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
+ds = nc.Dataset(home_folder + 'SunsetTime_5x5_7d_Atlantic_2015.nc', 'w', format='NETCDF4')
 ds.description = "File to store sunset time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 

@@ -8,15 +8,13 @@ import sys
 import cartopy.crs as ccrs
 
 args = sys.argv
-assert len(args) == 6
+assert len(args) == 5
 year = np.int32(args[1])
 month_num = np.int32(args[2])
 mon_name = date(1900, month_num, 1).strftime('%b')
 exact_depth=args[3]
 release_depth = int(np.float32(exact_depth))
 mode = args[4]
-order = args[5]
-
 
 home_folder = '/nethome/manra003/analysis/dispersion/'
 

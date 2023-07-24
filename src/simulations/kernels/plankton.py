@@ -8,8 +8,8 @@ def ZooplanktonDrift(particle, fieldset, time):
     # approximate values for Copepods
     migration_speed = 0.035     #(m/s)
  
-    min_depth = 10      #(m)
-    max_depth = 350     #(m)
+    min_depth = 0.5      #(m)
+    max_depth = 150     #(m)
 
     max_displacement = migration_speed * particle.dt
     

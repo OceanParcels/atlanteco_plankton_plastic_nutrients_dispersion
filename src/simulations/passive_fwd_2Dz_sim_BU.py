@@ -71,8 +71,6 @@ modeldata_end = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
 assert simulation_end <= modeldata_end
 
-fieldset = FieldSet.from_nemo(filenames, variables, dimensions, chunksize='auto')
-
 coords = np.load('/nethome/manra003/analysis/dispersion/Benguela_release_points_1601x1025_grid_015625.npz')
 
 def delete_particle(particle, fieldset, time):

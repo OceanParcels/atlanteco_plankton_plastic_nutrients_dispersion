@@ -20,8 +20,8 @@ def DayoftheYear(particle, fieldset, time):
     print("FINAL time:%f, tod:%f, doy:%f " % (time, particle.tod, particle.doy))
 
 def PreventThroughSurfaceError(particle, fieldset, time):
-    if particle.depth<0.5:
-        particle.depth=0.5
+    if particle.depth < 0.5:
+        particle.depth = 0.5
 
 def delete_particle(particle, fieldset, time):
     particle.delete()
