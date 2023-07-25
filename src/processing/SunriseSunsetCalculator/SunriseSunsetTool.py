@@ -1,6 +1,5 @@
 from core.algorithm import AlmanacSunrise, AlmanacSunset
 from datetime import datetime, timedelta
-from math import floor,ceil
 import netCDF4 as nc
 import numpy as np  
 
@@ -58,7 +57,7 @@ ds.createDimension('time', n_days)
 times = ds.createVariable('time', 'f8', ('time',))
 lats1 = ds.createVariable('lat', 'f4', ('lat',))
 lons1 = ds.createVariable('lon', 'f4', ('lon',))
-sunrise_time = ds.createVariable('sunrise', 'f4', ('time', 'lat', 'lon',))
+sunrise_time = ds.createVariable('sunrise', 'f4', ('time', 'lat', 'lon'))
 
 sunrise_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
@@ -83,7 +82,7 @@ ds.createDimension('time', n_days)
 times = ds.createVariable('time', 'f8', ('time',))
 lats1 = ds.createVariable('lat', 'f4', ('lat',))
 lons1 = ds.createVariable('lon', 'f4', ('lon',))
-sunset_time = ds.createVariable('sunset', 'f4', ('time', 'lat', 'lon',))
+sunset_time = ds.createVariable('sunset', 'f4', ('time', 'lat', 'lon'))
 
 sunset_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
