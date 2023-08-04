@@ -7,10 +7,9 @@ import sys
 import parcels
 import kernels.utilities as util
 import pandas as pd
-from kernels.plankton import ZooplanktonDrift
+import kernels.plankton as plankton
 import utils.sunrise_sunset as sun
 import dask
-import xarray as xr
 
 dask.config.set({"array.slicing.split_large_chunks": False})
 print(parcels.__version__)
@@ -35,7 +34,7 @@ else:
     elif release_depth == 100.0:
         min_ind, max_ind = 29, 31
     else:
-        raise ValueError('Depth indices have not been setup.')
+        raise ValueError('Depth indices have not been setup for 2D release.')
 # endregion
 
 data_path = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/'
@@ -43,7 +42,7 @@ project_data_path = '/nethome/manra003/atlanteco_plankton_plastic_nutrients_disp
 mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
 simulation_start = datetime(start_year, start_mon, start_day, 0, 0, 0) 
-#since we want the release to start at the same depth = 1 m, one day before the start is also added
+# since we want the release to start at the same depth = 1 m, i.e., plankton is at the surface start at night, one day before the start is also added
 days= [simulation_start-timedelta(days=1)]+[simulation_start+timedelta(days=i) for i in range(simulation_dt+1)]
 
 ufiles = [data_path + 'ROMEO.01_1d_uo_{0}{1}{2}_grid_U.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
@@ -82,12 +81,13 @@ else:
 
 #'lon': range(605,1903)= 60W,21E  'lat': range(0,1877) = 78S- 0Eq, (1177,1877)= 40S to Eq 'depth': range(min_ind, max_ind), 
 fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': range(min_ind, max_ind), 'lon': range(605,1903), 'lat': range(1177,1877)}, chunksize=False) 
+fieldset.add_constant('Surf_Z0', 0.5) # in m 
 
 if rk_mode == 'DVM':
 
-    fieldset.add_constant('migration_speed', 0.035) # in m/s
-    fieldset.add_constant('min_depth', 0.035) # in m 
-    fieldset.add_constant('max_depth', 150) # in m
+    fieldset.add_constant('Plankton_speed', 0.035) # in m/s
+    fieldset.add_constant('Plankton_min_depth', 0.5) # in m
+    fieldset.add_constant('Plankton_max_depth', 150) # in m
 
     # store the t0 time- time between the timestamp of first file and the simulation start time.  this is to compute the current hour of any given time during advection.
     # this is a hack 
@@ -106,7 +106,6 @@ if rk_mode == 'DVM':
                                         dimensions={'lon':'lon','lat':'lat', 'time':'time'},
                                         mesh='spherical'))
 
-u_file = nc.Dataset(ufiles[0])
 ticks = u_file['time_counter'][:][0]
 modeldata_start = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
@@ -132,7 +131,7 @@ output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simu
 if rk_mode == '3D':
     kernels = pset.Kernel(AdvectionRK4_3D) + pset.Kernel(util.PreventThroughSurfaceError)
 elif rk_mode == 'DVM':
-    kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(ZooplanktonDrift) 
+    kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(plankton.ZooplanktonDrift) 
 else:
     kernels= pset.Kernel(AdvectionRK4)
 

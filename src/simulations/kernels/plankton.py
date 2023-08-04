@@ -7,7 +7,7 @@ def ZooplanktonDrift(particle, fieldset, time):
     # and decreasing the speed from max to 0 as the plankton approaches desired depth
     # approximate values for Copepods
  
-    max_displacement = fieldset.migration_speed * particle.dt
+    max_displacement = fieldset.Plankton_speed * particle.dt
     
     #TODO error handling
     
@@ -25,14 +25,14 @@ def ZooplanktonDrift(particle, fieldset, time):
     #sunrise_utc=-2 or sunset_utc=-1: sun never rises here
     
     if (current_hour >= sunrise_utc and current_hour < sunset_utc) or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
-        if((particle.depth + max_displacement)>fieldset.max_depth):
-            particle.depth = fieldset.max_depth
+        if((particle.depth + max_displacement)>fieldset.Plankton_max_depth):
+            particle.depth = fieldset.Plankton_max_depth
         else:
             particle.depth += max_displacement
             
     else:   #night
-        if (particle.depth - max_displacement)<fieldset.min_depth:
-            particle.depth = fieldset.min_depth
+        if (particle.depth - max_displacement)<fieldset.Plankton_min_depth:
+            particle.depth = fieldset.Plankton_min_depth
         else:
             particle.depth -= max_displacement
 
