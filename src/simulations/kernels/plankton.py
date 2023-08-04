@@ -6,18 +6,14 @@ def ZooplanktonDrift(particle, fieldset, time):
     # TODO: increasing the speed of plankton from 0 to max as it leaves a given depth 
     # and decreasing the speed from max to 0 as the plankton approaches desired depth
     # approximate values for Copepods
-    migration_speed = 0.035     #(m/s)
  
-    min_depth = 0.5      #(m)
-    max_depth = 150     #(m)
-
-    max_displacement = migration_speed * particle.dt
+    max_displacement = fieldset.migration_speed * particle.dt
     
     #TODO error handling
     
     # Extract the current hour of the day from the origin timestamp from velocity files
     # (data available from) and time since the origin time.
-    total_seconds = fieldset.start_time + time
+    total_seconds = time - fieldset.start_time 
     total_hour = total_seconds/3600
     current_hour = math.fmod(total_hour, 24)
    
@@ -29,13 +25,16 @@ def ZooplanktonDrift(particle, fieldset, time):
     #sunrise_utc=-2 or sunset_utc=-1: sun never rises here
     
     if (current_hour >= sunrise_utc and current_hour < sunset_utc) or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
-        if((particle.depth + max_displacement)>max_depth):
-            particle.depth = max_depth
+        if((particle.depth + max_displacement)>fieldset.max_depth):
+            particle.depth = fieldset.max_depth
         else:
             particle.depth += max_displacement
             
     else:   #night
-        if (particle.depth - max_displacement)<min_depth:
-            particle.depth = min_depth
+        if (particle.depth - max_displacement)<fieldset.min_depth:
+            particle.depth = fieldset.min_depth
         else:
             particle.depth -= max_displacement
+
+    # print("FINAL lat:%f, lon:%f, depth:%f, current_hour:%f, sunrise_utc:%f, sunset_utc:%f" % (particle.lat, particle.lon, particle.id, particle.depth, current_hour, sunrise_utc, sunset_utc))
+    

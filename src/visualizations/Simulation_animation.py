@@ -26,7 +26,7 @@ mask_lon = mask_ds['glamf'].values
 mask_lat = mask_ds['gphif'].values
 mask_land = mask_ds['tmask'].values[:,0,:,:]
 
-ds = xr.open_zarr(home_folder + 'simulations/Fwd_{0}_Luderitz_117x117_{1}01-31_{2}_{3}z_{4}days.zarr'.format(mode, mon_name, year, int(release_depth), 100))
+ds = xr.open_zarr(home_folder + 'simulations/Fwd_{0}_Jul2023_BenguelaUpwR_117x117_{1}{2}_{3}z_{4}days.zarr'.format(mode, mon_name, year, int(release_depth), 100))
 print(ds)
 
 custom_size=10
@@ -73,7 +73,7 @@ def animate(i):
 
 size = len(time_range)
 anim = FuncAnimation(fig, animate, frames=size, interval=200)
-anim.save(home_folder + 'outputs/animations/Fwd_{0}_Luderitz_117x117_{1}01-31_{2}_{3}z_{4}days.mp4'.format(mode, mon_name, year, release_depth, 100))
+anim.save(home_folder + 'outputs/animations/Fwd_{0}_Jul2023_BenguelaUpwR_117x117_{1}{2}_{3}z_{4}days.mp4'.format(mode, mon_name, year, release_depth, 100))
 
 # endregion
 
