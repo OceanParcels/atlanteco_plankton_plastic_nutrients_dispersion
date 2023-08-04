@@ -24,4 +24,5 @@ def PreventThroughSurfaceError(particle, fieldset, time):
         particle.depth = 0.5
 
 def delete_particle(particle, fieldset, time):
+    print("Particle [%d] deleted: (%g %g %g %g)" % (particle.id, particle.lon, particle.lat, particle.depth, particle.time))
     particle.delete()
