@@ -17,17 +17,20 @@ print(parcels.__version__)
 
 # region arguments
 args = sys.argv
-assert len(args) == 5
+assert len(args) == 6
 start_year = np.int32(args[1])
 start_mon = np.int32(args[2])
 mon_name = date(1900, start_mon, 1).strftime('%b')
 release_depth = np.float32(args[3])
 rk_mode = args[4] # types= '3D_BP' '2D' '3D' 'DVM'
+resolution = args[5]
 
 start_day = 1
 simulation_dt = 100
-plastic_length = 1e-3 # in m
-plastic_density = 1010   # in kg/m^3
+if rk_mode == '3D_BP':
+    plastic_length = 1e-3 # in m 
+    plastic_density = 1025   # in kg/m^3
+    print("plastic_length :{0} m, plastic_density: {1} kg/m^3".format(plastic_length, plastic_density))
 
 if rk_mode != '2D':
     min_ind, max_ind = 0, 50 # load all depths if not 2D
@@ -53,13 +56,13 @@ vfiles = [data_path + 'ROMEO.01_1d_vo_{0}{1}{2}_grid_V.nc'.format(d.strftime("%Y
 wfiles = [data_path + 'ROMEO.01_1d_wo_{0}{1}{2}.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
 
 def define_2Dvariables():
-    filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': ufiles},
-                'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': ufiles[0], 'data': vfiles}}
+    filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': ufiles},
+                'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': vfiles}}
 
     variables = {'U': 'uo',
                 'V': 'vo'}
 
-    dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthu', 'time': 'time_counter'}
+    dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthw', 'time': 'time_counter'}
     return filenames, variables, dimensions
 
 
@@ -146,7 +149,9 @@ modeldata_start = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
 assert simulation_start >= modeldata_start
 
-coords = pd.read_csv(project_data_path + 'Benguela_TEST_release_points_76x51_grid_pt2.csv')
+coords = pd.read_csv(project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
+# coords = pd.read_csv(project_data_path + 'Benguela_TEST_release_points_76x51_grid_pt2.csv')
+
 if release_depth == 0:
     depth_arg = None
 else:
@@ -174,9 +179,11 @@ else:
                                 depth=depth_arg,
                                 time=simulation_start)
 pset.populate_indices()                            
-output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/08Aug2023_{0}_BenguelaUpwR_pt2gridres_{1}{2}_{3}z_{4}days_radius1mm_density1010.zarr".format(rk_mode, mon_name, start_year, int(release_depth), simulation_dt), 
+# output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/Aug2023_{0}_BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days_radius1mm_density1025.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt), 
+output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/NewAug2023_{0}_BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt),                               
                                 outputdt=timedelta(days=1))
 
+ #Fwd_DVM_Jul2023_BenguelaUpwR_117x117_Dec2017_1z_100days
 if rk_mode == '3D':
     kernels = pset.Kernel(util.sudo_AdvectionRK4_3D) + pset.Kernel(util.PreventThroughSurfaceError)
 elif rk_mode == 'DVM':  # as of now onyl using uv at z (RK4) and vertical position is dermined buy plankton drift only. - to confirm this!

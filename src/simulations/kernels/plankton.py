@@ -24,7 +24,7 @@ def ZooplanktonDrift(particle, fieldset, time):
     #sunrise_utc=-1 or sunset_utc=-2: sun never sets here
     #sunrise_utc=-2 or sunset_utc=-1: sun never rises here
     
-    if (current_hour >= sunrise_utc and current_hour < sunset_utc) or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
+    if (current_hour >= sunrise_utc and current_hour < sunset_utc): # or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
         if((particle.depth + max_displacement)>fieldset.Plankton_max_depth):
             particle.depth = fieldset.Plankton_max_depth
         else:
