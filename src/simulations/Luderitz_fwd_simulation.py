@@ -14,6 +14,10 @@ import dask
 
 dask.config.set({"array.slicing.split_large_chunks": False})
 print(parcels.__version__)
+dt = timedelta(minutes=10) # integration dt
+output_days= timedelta(days=1) # output dt in days
+start_day = 1
+simulation_dt = 100
 
 # region arguments
 args = sys.argv
@@ -25,8 +29,6 @@ release_depth = np.float32(args[3])
 rk_mode = args[4] # types= '3D_BP' '2D' '3D' 'DVM'
 resolution = args[5]
 
-start_day = 1
-simulation_dt = 100
 if rk_mode == '3D_BP':
     plastic_length = 1e-3 # in m 
     plastic_density = 1025   # in kg/m^3
@@ -142,6 +144,8 @@ if rk_mode == '3D_BP':
     fieldset.add_field(BP_fieldset.cons_temperature)  # degree_C
     fieldset.add_field(BP_fieldset.abs_salinity)      # psu
 
+if rk_mode == 'sinking':
+    fieldset.add_constant('sinking_speed', 117/(24*3600)) #117m/day for particulate matter in the benguela- Fischer and Karakas 2009
 
 u_file = nc.Dataset(ufiles[0])
 ticks = u_file['time_counter'][:][0]
@@ -149,8 +153,8 @@ modeldata_start = datetime(1900, 1, 1) + timedelta(seconds=ticks)
 
 assert simulation_start >= modeldata_start
 
-coords = pd.read_csv(project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
-# coords = pd.read_csv(project_data_path + 'Benguela_TEST_release_points_76x51_grid_pt2.csv')
+# coords = pd.read_csv(project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
+coords = pd.read_csv(project_data_path + 'Release_points_1ov16_321x241grid.csv')
 
 if release_depth == 0:
     depth_arg = None
@@ -180,8 +184,8 @@ else:
                                 time=simulation_start)
 pset.populate_indices()                            
 # output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/Aug2023_{0}_BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days_radius1mm_density1025.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt), 
-output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/NewAug2023_{0}_BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt),                               
-                                outputdt=timedelta(days=1))
+output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}/BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt),                               
+                                outputdt=output_days)
 
  #Fwd_DVM_Jul2023_BenguelaUpwR_117x117_Dec2017_1z_100days
 if rk_mode == '3D':
@@ -190,12 +194,20 @@ elif rk_mode == 'DVM':  # as of now onyl using uv at z (RK4) and vertical positi
     kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(plankton.ZooplanktonDrift) 
 elif rk_mode == '3D_BP':
     kernels = pset.Kernel(util.PolyTEOS10_bsq) + pset.Kernel(plastic.RK4_Kooi_vertical_displacement)
+elif rk_mode == 'sinking':
+    kernels = pset.Kernel(util.sudo_AdvectionRK4_3D) +pset.Kernel(util.ParticleSinking) + pset.Kernel(util.PreventThroughSurfaceError)
 else:
     kernels= pset.Kernel(AdvectionRK4)
 
+output_file.add_metadata("Parcels_version", str(parcels.__version__))
+output_file.add_metadata("Days", str(simulation_dt))
+output_file.add_metadata("integration dt in seconds", str(dt))
+output_file.add_metadata("output_dt", str(output_days))
+output_file.add_metadata("time_execution", datetime.now().strftime("%Y-%m-%d_%H:%M:%S"))
+
 pset.execute(kernels,                
              runtime=timedelta(days=simulation_dt),
-             dt= timedelta(minutes=10),                       
+             dt= dt,                       
              output_file=output_file,
              recovery={ErrorCode.ErrorOutOfBounds: util.delete_particle})
 

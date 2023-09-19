@@ -26,7 +26,7 @@ def PreventThroughSurfaceError(particle, fieldset, time):
 
 
 def delete_particle(particle, fieldset, time):
-    print("Particle [%d] deleted: (%g %g %g %g)" % (particle.id, particle.lon, particle.lat, particle.depth, particle.time))
+    # print("Particle [%d] deleted: (%g %g %g %g)" % (particle.id, particle.lon, particle.lat, particle.depth, particle.time))
     particle.delete()
 
 __all__ = ['PolyTEOS10_bsq']
@@ -143,3 +143,8 @@ def sudo_AdvectionRK4_3D(particle, fieldset, time):
     particle.lon += (u1 + 2*u2 + 2*u3 + u4) / 6. * particle.dt
     particle.lat += (v1 + 2*v2 + 2*v3 + v4) / 6. * particle.dt
     particle.depth += (w1 + 2*w2 + 2*w3 + w4) / 6. * particle.dt
+
+
+def ParticleSinking(particle, fieldset, time):
+    particle.depth += fieldset.sinking_speed * particle.dt  # 117 m/d for particle sinking in Benguela
+    
