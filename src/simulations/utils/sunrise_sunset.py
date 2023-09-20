@@ -3,6 +3,7 @@ import netCDF4 as nc
 import xarray as xr
 import pandas as pd
 from datetime import date
+import calendar
 
 def load_sunrise_sunset(days, folder_path):
     '''
@@ -21,10 +22,12 @@ def load_sunrise_sunset(days, folder_path):
     
     # for unique years in the data files, get the datetimes for all days and remove the leap year dates. 
     # It is okay to have missing values for a day in Feb, interpolation should work fine. It is just o have consistent values for all days
+    #remove leap year dates from the list
     dates = pd.date_range(date(years[0],1,1), date(years[0],12,31))
-    sunrise_da['time']= dates[~dates.is_leap_year]
-    sunset_da['time']= dates[~dates.is_leap_year]
-    
+    if calendar.isleap(years[0]):
+        dates = dates.delete(31+28)
+    sunrise_da['time']= dates
+    sunset_da['time']= dates
     sunrise_nc.close()
     sunset_nc.close()
     sunrise_copy=sunrise_da.copy()
@@ -32,10 +35,12 @@ def load_sunrise_sunset(days, folder_path):
 
     for y in years[1:]:
         dates = pd.date_range(date(y, 1, 1), date(y, 12, 31))
-        sunrise_copy['time']= dates[~dates.is_leap_year]
+        if calendar.isleap(y):
+            dates = dates.delete(31+28)
+        sunrise_copy['time']= dates
         sunrise_da = xr.combine_by_coords([sunrise_da, sunrise_copy], coords=['time'])
 
-        sunset_copy['time']= dates[~dates.is_leap_year]
+        sunset_copy['time']= dates
         sunset_da = xr.combine_by_coords([sunset_da, sunset_copy], coords=['time'])
 
     return sunrise_da, sunset_da
