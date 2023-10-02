@@ -4,7 +4,7 @@ from scipy import stats
 
 def distance(lon1, lat1, lon2, lat2, r=6378):
     """
-    Parallelised code from - Michael Denes
+    Parallelised code from - Michael Denes- Haversine algotirthm
     Calculate the great circle distance between two points 
     on the earth (specified in decimal degrees)
     """
@@ -33,9 +33,12 @@ def distance(lon1, lat1, lon2, lat2, r=6378):
 def threshold_days(array, delta_d, mask_value=104.0):
     def delta_value_index(row, tc):
         search = np.where(row>=tc)[0]
-        if search.size>0:
+        if search.size > 0:     # crossed tc for the first time, and may/may not be deleted afterwards
             return search[0]
-        return mask_value # masking value-  not crossed in 100 days value just one bin higher 
+        elif np.isnan(row[-1]):     # if deleted before tc could be crossed
+            return np.nan
+        else:
+            return mask_value   # not crossed in 100 days: masking value- value just one bin higher 
 
     days=np.empty((array.shape[0]))
     for i in range(array.shape[0]):
@@ -45,9 +48,9 @@ def threshold_days(array, delta_d, mask_value=104.0):
 
 def get_diff_CDF_PDF(array, delta_d, bins):
     diff = threshold_days(array, delta_d)
-    print(stats.describe(diff, axis= None)) #, nan_policy='omit'
-    count, _ = np.histogram(diff, bins=bins)
-
-    pdf = count/np.sum(count)
+    # print(stats.describe(diff, axis= None, nan_policy='omit'))
+    print("Discarded particles count: ",np.where(np.isnan(diff))[0].size)
+    count, _ = np.histogram(diff, bins=bins)  
+    pdf = count/np.sum(count)  # computation discards particles that were deleted before crossing the threshold distance. very minor
     cdf = np.cumsum(pdf)
     return cdf, pdf
