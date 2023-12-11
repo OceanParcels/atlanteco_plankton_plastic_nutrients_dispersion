@@ -16,14 +16,14 @@ dask.config.set({"array.slicing.split_large_chunks": False})
 print(parcels.__version__)
 
 if __name__ == '__main__':
-    ### ------------------------PRESET VARIABLES------------------------ ###
+    ### ------------------------PRE-SET VARIABLES------------------------ ###
     dt = timedelta(minutes=10) # integration dt
     output_days= timedelta(days=1) # output dt in days
     start_day = 1
     simulation_dt = 100
 
     # sinking speed from Pitcher et al. 1989
-    # mean Phytoplankton Carbon (PPC) sinking rate for all taxonomic compositions and depths = 0.25 m/d
+    # mean Phytoplankton Carbon (PPC) sinking rate for all taxonomic compositions and depths = 0.25 m/day
     # 
     sinking_speed_mpd =  0.25 #
 
@@ -35,19 +35,16 @@ if __name__ == '__main__':
     start_mon = np.int32(args[2])
     mon_name = date(1900, start_mon, 1).strftime('%b')
     release_depth = np.float32(args[3])
-    rk_mode = args[4] # types= '3D_BP' '2D' '3D' 'DVM' 'sinking'
+    rk_mode = args[4]                               # types= '2D' '3D' 'DVM' 'sinking'
     resolution = args[5]
-
-    if rk_mode == '3D_BP':
-        plastic_length = 1e-3 # in m 
-        plastic_density = 1025   # in kg/m^3
-        print("plastic_length :{0} m, plastic_density: {1} kg/m^3".format(plastic_length, plastic_density))
 
     if rk_mode != '2D':
         min_ind, max_ind = 0, 50 # load all depths if not 2D
-    else: # load only specific levels - only mentioned for <1 and 100m 
-        if release_depth <= 1:
+    else: # load only specific levels - 
+        if release_depth <= 1: # w(0,1,2):0. ,   0.7942803,   1.616721 and u():3.952819e-01, 1.201226e+00, 2.041416e+00
             min_ind, max_ind = 0, 3
+        elif release_depth == 5:  # depth range referred to here with w(5,6) : 4.329307 ,   5.3378363 and u(5,6):4.825891e+00, 5.866306e+00
+            min_ind, max_ind = 5, 7
         else:
             raise ValueError('Depth indices have not been setup for 2D release.')
     # endregion
@@ -56,7 +53,7 @@ if __name__ == '__main__':
     project_data_path = '/nethome/manra003/atlanteco_plankton_plastic_nutrients_dispersion/data/'
     mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
-    # Model output is given at 12:00:00 H, we will start the simulation at 00:00:00 H
+    # Model output is given at 12:00:00 H and we want to start the simulation at 00:00:00 H
     simulation_start = datetime(start_year, start_mon, start_day, 0, 0, 0)  
     # since we want the release to start at the same depth = 1 m, i.e., plankton is at the surface start at night, one day before the start is also added
     days= [simulation_start-timedelta(days=1)]+[simulation_start+timedelta(days=i) for i in range(simulation_dt+1)]
@@ -129,29 +126,6 @@ if __name__ == '__main__':
                                             dimensions={'lon':'lon','lat':'lat', 'time':'time'},
                                             mesh='spherical'))
 
-    if rk_mode == '3D_BP':
-        print("Loading Bouyant plastic related fieldset information. Radius:{0} m and Density:{1} kg/m^3".format(plastic_length, plastic_density))
-        fieldset.add_constant('gravitational_acc', 9.81) # in m/s^2
-        # load temperature and salinity fields
-        tfiles = [data_path + 'ROMEO.01_1d_thetao_{0}{1}{2}_grid_T.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
-        sfiles = [data_path + 'ROMEO.01_1d_so_{0}{1}{2}_grid_T.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
-        filenames_BP = {'cons_temperature': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': tfiles},
-                        'abs_salinity': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': sfiles}}
-
-        variables_BP = {'cons_temperature': 'thetao',
-                        'abs_salinity': 'so'}
-        
-        dimensions_BP = {'cons_temperature': {'lon': 'glamf', 'lat': 'gphif','depth': 'depthw', 'time': 'time_counter'},
-                        'abs_salinity': {'lon': 'glamf', 'lat': 'gphif','depth': 'depthw', 'time': 'time_counter'}}
-        
-        BP_fieldset = FieldSet.from_nemo(filenames_BP, variables_BP, dimensions_BP, indices={'depth': range(min_ind, max_ind), 'lon': range(0,1903), 'lat': range(0,1877)}, chunksize=False)
-
-        # For simplification purpose, loading potential temperature from ocean data as conservative temperature(CT)- difference primarily occurs below 1 km depth.
-        # ideally convert potential temperature to conservative temperature
-        # CT and S needed to compute seawater density. 
-        fieldset.add_field(BP_fieldset.cons_temperature)  # degree_C
-        fieldset.add_field(BP_fieldset.abs_salinity)      # psu
-
     if rk_mode == 'sinking':
         fieldset.add_constant('sinking_speed', sinking_speed_mpd/(24*3600)) #speed in m/day to m/s
 
@@ -168,27 +142,12 @@ if __name__ == '__main__':
     else:
         depth_arg = [release_depth for i in range(len(coords['Longitude']))]
 
-
-    if rk_mode == '3D_BP':
-        # list of radii and densitites for each particle.
-        n_length = [plastic_length for i in range(len(coords['Longitude']))]
-        n_density = [plastic_density for i in range(len(coords['Longitude']))]
-        
-        pset = ParticleSet.from_list(fieldset=fieldset, 
-                                    pclass=plastic.Plastic_Particle,
-                                    lon=coords['Longitude'],
-                                    lat=coords['Latitude'],
-                                    depth=depth_arg,
-                                    time=simulation_start,
-                                    plastic_length=n_length,
-                                    plastic_density=n_density)
-    else:
-        pset = ParticleSet.from_list(fieldset=fieldset, 
-                                    pclass=JITParticle,
-                                    lon=coords['Longitude'],
-                                    lat=coords['Latitude'],
-                                    depth=depth_arg,
-                                    time=simulation_start)
+    pset = ParticleSet.from_list(fieldset=fieldset, 
+                                pclass=JITParticle,
+                                lon=coords['Longitude'],
+                                lat=coords['Latitude'],
+                                depth=depth_arg,
+                                time=simulation_start)
     pset.populate_indices()                            
     output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}/BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt),                               
                                     outputdt=output_days)
