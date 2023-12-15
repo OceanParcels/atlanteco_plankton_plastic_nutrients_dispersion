@@ -1,6 +1,5 @@
 import netCDF4 as nc
-from parcels import Field, FieldSet, ParticleSet, JITParticle, AdvectionRK4, AdvectionRK4_3D
-from parcels.tools.statuscodes import ErrorCode
+from parcels import Field, FieldSet, ParticleSet, JITParticle, AdvectionRK4
 from datetime import timedelta, datetime, date
 import numpy as np
 import sys
@@ -8,11 +7,9 @@ import parcels
 import kernels.utilities as util
 import pandas as pd
 import kernels.plankton as plankton
-import kernels.plastic as plastic
 import utils.sunrise_sunset as sun
-import dask
+import os
 
-dask.config.set({"array.slicing.split_large_chunks": False})
 print(parcels.__version__)
 
 if __name__ == '__main__':
@@ -55,7 +52,7 @@ if __name__ == '__main__':
 
     # Model output is given at 12:00:00 H and we want to start the simulation at 00:00:00 H
     simulation_start = datetime(start_year, start_mon, start_day, 0, 0, 0)  
-    # since we want the release to start at the same depth = 1 m, i.e., plankton is at the surface start at night, one day before the start is also added
+    # since we want the release to start at the same depth = 1 m, i.e., plankton is at the surface start at night, one day before the start is also added for interpolation
     days= [simulation_start-timedelta(days=1)]+[simulation_start+timedelta(days=i) for i in range(simulation_dt+1)]
 
     ufiles = [data_path + 'ROMEO.01_1d_uo_{0}{1}{2}_grid_U.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
@@ -92,7 +89,7 @@ if __name__ == '__main__':
         print('load 3D fields')
         filenames, variables, dimensions = define_3Dvariables()
 
-    #'lon': range(605,1903)= 60W,21E  'lat': range(0,1877) = 78S- 0Eq, (0,1877)= 78S to Eq 'depth': range(min_ind, max_ind), 
+    #'lon': range(0,1903)= 98W,21E  'lat': range(0,1877) = 78S- 0Eq, (0,1877)= 78S to Eq 'depth': range(min_ind, max_ind), 
     fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': range(min_ind, max_ind), 'lon': range(0,1903), 'lat': range(0,1877)}, chunksize=False) 
 
     # reversing signs for W, since depth increases 
@@ -101,7 +98,7 @@ if __name__ == '__main__':
     #     fieldset.W.set_scaling_factor(-1.0)
 
     # minimum depth a particle can attain in the simulations.
-    fieldset.add_constant('Surf_Z0', 0.5) # in m 
+    fieldset.add_constant('Surf_Z0', 0) # in m 
 
     if rk_mode == 'DVM':
         print("Loading DVM related fieldset information")
@@ -135,34 +132,36 @@ if __name__ == '__main__':
 
     assert simulation_start >= modeldata_start
 
-    coords = pd.read_csv(project_data_path + 'Release_points_{0}grid.csv'.format(resolution))
-
-    if release_depth == 0:
-        depth_arg = [release_depth for i in range(len(coords['Longitude']))]
-    else:
-        depth_arg = [release_depth for i in range(len(coords['Longitude']))]
-
+    coords = pd.read_csv(project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
+  
+    depth_arg = [release_depth] * len(coords['Longitude'])
+    
     pset = ParticleSet.from_list(fieldset=fieldset, 
                                 pclass=JITParticle,
                                 lon=coords['Longitude'],
                                 lat=coords['Latitude'],
                                 depth=depth_arg,
                                 time=simulation_start)
-    pset.populate_indices()                            
-    output_file = pset.ParticleFile(name="/nethome/manra003/analysis/dispersion/simulations/{0}/BenguelaUpwR_{1}res_{2}{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, mon_name, start_year, int(release_depth), simulation_dt),                               
+    pset.populate_indices()
+
+    output_folder = "/nethome/manra003/analysis/dispersion/simulations/{0}/{1}/".format(rk_mode,start_year)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    output_file = pset.ParticleFile(name=output_folder +"Benguela_{0}_{1}res_{2}-{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, start_year, str(start_mon).zfill(2), int(release_depth), simulation_dt),                               
                                     outputdt=output_days)
 
     if rk_mode == '3D':
         kernels = pset.Kernel(util.sudo_AdvectionRK4_3D) + pset.Kernel(util.PreventThroughSurfaceError)
     elif rk_mode == 'DVM':  # as of now onyl using uv at z (RK4) and vertical position is dermined buy plankton drift only. - to confirm this!
         kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(plankton.ZooplanktonDrift) 
-    elif rk_mode == '3D_BP':
-        kernels = pset.Kernel(util.PolyTEOS10_bsq) + pset.Kernel(plastic.RK4_Kooi_vertical_displacement)
     elif rk_mode == 'sinking':
         kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(util.ParticleSinking)
     else:
-        kernels= pset.Kernel(AdvectionRK4)
+        kernels= [AdvectionRK4, util.CheckOutOfBounds] # 2D simulations and delete if particle goes beyond model domain 
 
+        # kernels= pset.Kernel(AdvectionRK4) + pset.Kernel(util.CheckOutOfBounds) # 2D simulations and delete if particle goes beyond model domain 
+    print(kernels)
     output_file.add_metadata("Parcels_version", str(parcels.__version__))
     output_file.add_metadata("Days", str(simulation_dt))
     output_file.add_metadata("integration dt in seconds", str(dt))
@@ -172,7 +171,4 @@ if __name__ == '__main__':
     pset.execute(kernels,                
                 runtime=timedelta(days=simulation_dt),
                 dt= dt,                       
-                output_file=output_file,
-                recovery={ErrorCode.ErrorOutOfBounds: util.delete_particle})
-
-    output_file.close()
+                output_file=output_file)
