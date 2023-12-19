@@ -1,5 +1,5 @@
 import netCDF4 as nc
-from parcels import Field, FieldSet, ParticleSet, JITParticle, AdvectionRK4
+from parcels import Field, FieldSet, ParticleSet, JITParticle, AdvectionRK4, AdvectionRK4_3D
 from datetime import timedelta, datetime, date
 import numpy as np
 import sys
@@ -14,36 +14,45 @@ print(parcels.__version__)
 
 if __name__ == '__main__':
     ### ------------------------PRE-SET VARIABLES------------------------ ###
-    dt = timedelta(minutes=10) # integration dt
-    output_days= timedelta(days=1) # output dt in days
+    dt = timedelta(minutes=10)  # integration dt
+    output_days = timedelta(days=1)  # output dt in days
     start_day = 1
-    simulation_dt = 100
+    simulation_days = 100
 
     # sinking speed from Pitcher et al. 1989
     # mean Phytoplankton Carbon (PPC) sinking rate for all taxonomic compositions and depths = 0.25 m/day
-    # 
-    sinking_speed_mpd =  0.25 #
+    #
+    sinking_speed_mpd = 0.25
+
+    # DVM settings for intemediate plankton particles, min_depth is fixed to release depth:
+    plankton_speed = 0.035  # in m/s
+    plankton_max_depth = 150  # in m
+
 
     ### ------------------------PASSED ARGUMENTS------------------------ ###
     # region arguments
     args = sys.argv
     assert len(args) == 6
-    start_year = np.int32(args[1]) 
+    start_year = np.int32(args[1])
     start_mon = np.int32(args[2])
     mon_name = date(1900, start_mon, 1).strftime('%b')
     release_depth = np.float32(args[3])
-    rk_mode = args[4]                               # types= '2D' '3D' 'DVM' 'sinking'
+    # types= '2D' '3D' 'DVM' 'sinking'
+    rk_mode = args[4]
     resolution = args[5]
 
     if rk_mode != '2D':
-        min_ind, max_ind = 0, 50 # load all depths if not 2D
-    else: # load only specific levels - 
-        if release_depth <= 1: # w(0,1,2):0. ,   0.7942803,   1.616721 and u():3.952819e-01, 1.201226e+00, 2.041416e+00
+        min_ind, max_ind = 0, 50  # load all depths if not 2D
+    else:  # load only specific levels -
+        # w(0,1,2):0. ,   0.7942803,   1.616721 and u():3.952819e-01, 1.201226e+00, 2.041416e+00
+        if release_depth <= 1:
             min_ind, max_ind = 0, 3
-        elif release_depth == 5:  # depth range referred to here with w(5,6) : 4.329307 ,   5.3378363 and u(5,6):4.825891e+00, 5.866306e+00
+        # depth range referred to here with w(5,6) : 4.329307 ,   5.3378363 and u(5,6):4.825891e+00, 5.866306e+00
+        elif release_depth == 5:
             min_ind, max_ind = 5, 7
         else:
-            raise ValueError('Depth indices have not been setup for 2D release.')
+            raise ValueError(
+                'Depth indices have not been setup for 2D release.')
     # endregion
 
     data_path = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/'
@@ -51,35 +60,40 @@ if __name__ == '__main__':
     mesh_mask = data_path + 'GLOB16L98_mesh_mask_atlantic.nc'
 
     # Model output is given at 12:00:00 H and we want to start the simulation at 00:00:00 H
-    simulation_start = datetime(start_year, start_mon, start_day, 0, 0, 0)  
+    simulation_start = datetime(start_year, start_mon, start_day, 0, 0, 0)
     # since we want the release to start at the same depth = 1 m, i.e., plankton is at the surface start at night, one day before the start is also added for interpolation
-    days= [simulation_start-timedelta(days=1)]+[simulation_start+timedelta(days=i) for i in range(simulation_dt+1)]
+    days = [simulation_start-timedelta(days=1)]+[simulation_start+timedelta(days=i)
+                                                 for i in range(simulation_days+1)]
 
-    ufiles = [data_path + 'ROMEO.01_1d_uo_{0}{1}{2}_grid_U.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
-    vfiles = [data_path + 'ROMEO.01_1d_vo_{0}{1}{2}_grid_V.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
-    wfiles = [data_path + 'ROMEO.01_1d_wo_{0}{1}{2}.nc'.format(d.strftime("%Y"),d.strftime("%m"),d.strftime("%d")) for d in days]
+    ufiles = [data_path + 'ROMEO.01_1d_uo_{0}{1}{2}_grid_U.nc'.format(
+        d.strftime("%Y"), d.strftime("%m"), d.strftime("%d")) for d in days]
+    vfiles = [data_path + 'ROMEO.01_1d_vo_{0}{1}{2}_grid_V.nc'.format(
+        d.strftime("%Y"), d.strftime("%m"), d.strftime("%d")) for d in days]
+    wfiles = [data_path + 'ROMEO.01_1d_wo_{0}{1}{2}.nc'.format(
+        d.strftime("%Y"), d.strftime("%m"), d.strftime("%d")) for d in days]
 
     def define_2Dvariables():
         filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': ufiles},
-                    'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': vfiles}}
+                     'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': vfiles}}
 
         variables = {'U': 'uo',
-                    'V': 'vo'}
+                     'V': 'vo'}
 
-        dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthw', 'time': 'time_counter'}
+        dimensions = {'lon': 'glamf', 'lat': 'gphif',
+                      'depth': 'depthw', 'time': 'time_counter'}
         return filenames, variables, dimensions
-
 
     def define_3Dvariables():
         filenames = {'U': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': ufiles},
-                    'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': vfiles},
-                    'W': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': wfiles}}
+                     'V': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': vfiles},
+                     'W': {'lon': mesh_mask, 'lat': mesh_mask, 'depth': wfiles[0], 'data': wfiles}}
 
         variables = {'U': 'uo',
-                    'V': 'vo',
-                    'W': 'wo'}
+                     'V': 'vo',
+                     'W': 'wo'}
 
-        dimensions = {'lon': 'glamf', 'lat': 'gphif', 'depth': 'depthw', 'time': 'time_counter'}
+        dimensions = {'lon': 'glamf', 'lat': 'gphif',
+                      'depth': 'depthw', 'time': 'time_counter'}
         return filenames, variables, dimensions
 
     if rk_mode == '2D':
@@ -89,42 +103,48 @@ if __name__ == '__main__':
         print('load 3D fields')
         filenames, variables, dimensions = define_3Dvariables()
 
-    #'lon': range(0,1903)= 98W,21E  'lat': range(0,1877) = 78S- 0Eq, (0,1877)= 78S to Eq 'depth': range(min_ind, max_ind), 
-    fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': range(min_ind, max_ind), 'lon': range(0,1903), 'lat': range(0,1877)}, chunksize=False) 
+    # 'lon': range(0,1903)= 98W,21E  'lat': range(0,1877) = 78S- 0Eq, 'depth': range(min_ind, max_ind),
+    fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': range(
+        min_ind, max_ind), 'lon': range(0, 1903), 'lat': range(0, 1877)}, chunksize=False)
 
-    # reversing signs for W, since depth increases 
-    # the following doesnt work- for now- changing signs of w in the kernels
+    # reversing signs for W, since depth increases
+    # the following doesnt work- for now- changing signs of w in the kernels- util.sudo_AdvectionRK4_3D
     # if rk_mode!='2D':
     #     fieldset.W.set_scaling_factor(-1.0)
 
     # minimum depth a particle can attain in the simulations.
-    fieldset.add_constant('Surf_Z0', 0) # in m 
+    fieldset.add_constant('Surf_Z0', 0.0)  # in m
 
     if rk_mode == 'DVM':
         print("Loading DVM related fieldset information")
-        fieldset.add_constant('Plankton_speed', 0.035) # in m/s
-        fieldset.add_constant('Plankton_min_depth', 0.5) # in m
-        fieldset.add_constant('Plankton_max_depth', 150) # in m
+        fieldset.add_constant('Plankton_speed', plankton_speed)  # in m/s
+        fieldset.add_constant('Plankton_min_depth', release_depth)  # in m
+        fieldset.add_constant('Plankton_max_depth', plankton_max_depth)  # in m
 
         # store the t0 time- time between the timestamp of first file and the simulation start time.  this is to compute the current hour of any given time during advection.
-        # this is a hack 
-        time_zero_totalseconds = (datetime.strptime(str(fieldset.U.grid.time_origin)[:19],'%Y-%m-%dT%H:%M:%S') - simulation_start).total_seconds()
+        # this is a hack
+        time_zero_totalseconds = (datetime.strptime(str(fieldset.U.grid.time_origin)[
+                                  :19], '%Y-%m-%dT%H:%M:%S') - simulation_start).total_seconds()
         fieldset.add_constant('start_time', time_zero_totalseconds)
 
-        sunrise_da, sunset_da = sun.load_sunrise_sunset(days, project_data_path)
-        
+        sunrise_da, sunset_da = sun.load_sunrise_sunset(
+            days, project_data_path)
+
         fieldset.add_field(Field.from_xarray(sunrise_da,
-                                            'Sunrise', 
-                                            dimensions={'lon':'lon','lat':'lat', 'time':'time'},
-                                            mesh='spherical'))
+                                             'Sunrise',
+                                             dimensions={
+                                                 'lon': 'lon', 'lat': 'lat', 'time': 'time'},
+                                             mesh='spherical'))
 
         fieldset.add_field(Field.from_xarray(sunset_da,
-                                            'Sunset', 
-                                            dimensions={'lon':'lon','lat':'lat', 'time':'time'},
-                                            mesh='spherical'))
+                                             'Sunset',
+                                             dimensions={
+                                                 'lon': 'lon', 'lat': 'lat', 'time': 'time'},
+                                             mesh='spherical'))
 
     if rk_mode == 'sinking':
-        fieldset.add_constant('sinking_speed', sinking_speed_mpd/(24*3600)) #speed in m/day to m/s
+        # speed in m/day to m/s
+        fieldset.add_constant('sinking_speed', sinking_speed_mpd/(24*3600))
 
     u_file = nc.Dataset(ufiles[0])
     ticks = u_file['time_counter'][:][0]
@@ -132,43 +152,46 @@ if __name__ == '__main__':
 
     assert simulation_start >= modeldata_start
 
-    coords = pd.read_csv(project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
-  
+    coords = pd.read_csv(
+        project_data_path + 'Benguela_release_points_{0}grid.csv'.format(resolution))
+
     depth_arg = [release_depth] * len(coords['Longitude'])
-    
-    pset = ParticleSet.from_list(fieldset=fieldset, 
-                                pclass=JITParticle,
-                                lon=coords['Longitude'],
-                                lat=coords['Latitude'],
-                                depth=depth_arg,
-                                time=simulation_start)
+
+    pset = ParticleSet.from_list(fieldset=fieldset,
+                                 pclass=JITParticle,
+                                 lon=coords['Longitude'],
+                                 lat=coords['Latitude'],
+                                 depth=depth_arg,
+                                 time=simulation_start)
     pset.populate_indices()
 
-    output_folder = "/nethome/manra003/analysis/dispersion/simulations/{0}/{1}/".format(rk_mode,start_year)
+    output_folder = "/nethome/manra003/analysis/dispersion/simulations/{0}/{1}/".format(
+        rk_mode, start_year)
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    output_file = pset.ParticleFile(name=output_folder +"Benguela_{0}_{1}res_{2}-{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, start_year, str(start_mon).zfill(2), int(release_depth), simulation_dt),                               
+    output_file = pset.ParticleFile(name=output_folder + "Benguela_{0}_{1}res_{2}-{3}_{4}z_{5}days.zarr".format(rk_mode, resolution, start_year, str(start_mon).zfill(2), int(release_depth), simulation_days),
                                     outputdt=output_days)
 
     if rk_mode == '3D':
-        kernels = pset.Kernel(util.sudo_AdvectionRK4_3D) + pset.Kernel(util.PreventThroughSurfaceError)
-    elif rk_mode == 'DVM':  # as of now onyl using uv at z (RK4) and vertical position is dermined buy plankton drift only. - to confirm this!
-        kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(plankton.ZooplanktonDrift) 
+        kernels = [AdvectionRK4_3D]
+    elif rk_mode == 'DVM':
+        kernels = [AdvectionRK4_3D, plankton.ZooplanktonDrift]
     elif rk_mode == 'sinking':
-        kernels = pset.Kernel(AdvectionRK4) + pset.Kernel(util.ParticleSinking)
+        kernels = [AdvectionRK4_3D, util.ParticleSinking]
     else:
-        kernels= [AdvectionRK4, util.CheckOutOfBounds] # 2D simulations and delete if particle goes beyond model domain 
+        kernels = [AdvectionRK4]
 
-        # kernels= pset.Kernel(AdvectionRK4) + pset.Kernel(util.CheckOutOfBounds) # 2D simulations and delete if particle goes beyond model domain 
+    kernels += [util.CheckOutOfBounds]
     print(kernels)
-    output_file.add_metadata("Parcels_version", str(parcels.__version__))
-    output_file.add_metadata("Days", str(simulation_dt))
+
+    output_file.add_metadata("Days", str(simulation_days))
     output_file.add_metadata("integration dt in seconds", str(dt))
     output_file.add_metadata("output_dt", str(output_days))
-    output_file.add_metadata("time_execution", datetime.now().strftime("%Y-%m-%d_%H:%M:%S"))
+    output_file.add_metadata(
+        "time_execution", datetime.now().strftime("%Y-%m-%d_%H:%M:%S"))
 
-    pset.execute(kernels,                
-                runtime=timedelta(days=simulation_dt),
-                dt= dt,                       
-                output_file=output_file)
+    pset.execute(kernels,
+                 runtime=timedelta(days=simulation_days),
+                 dt=dt,
+                 output_file=output_file)
