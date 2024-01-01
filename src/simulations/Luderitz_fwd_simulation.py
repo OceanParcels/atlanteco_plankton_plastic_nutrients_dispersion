@@ -9,7 +9,9 @@ import pandas as pd
 import kernels.plankton as plankton
 import utils.sunrise_sunset as sun
 import os
+import dask
 
+dask.config.set({"array.slicing.split_large_chunks": False})
 print(parcels.__version__)
 
 if __name__ == '__main__':
@@ -18,16 +20,16 @@ if __name__ == '__main__':
     output_days = timedelta(days=1)  # output dt in days
     start_day = 1
     simulation_days = 100
-
+    min_depth = 1e-3
+    print("dt, output_dt_days, start_day, total_days, min_depth", dt, output_days, start_day,simulation_days,min_depth)
     # sinking speed from Pitcher et al. 1989
     # mean Phytoplankton Carbon (PPC) sinking rate for all taxonomic compositions and depths = 0.25 m/day
     #
     sinking_speed_mpd = 0.25
 
     # DVM settings for intemediate plankton particles, min_depth is fixed to release depth:
-    plankton_speed = 0.035  # in m/s
+    plankton_speed = 0.03  # in m/s
     plankton_max_depth = 150  # in m
-
 
     ### ------------------------PASSED ARGUMENTS------------------------ ###
     # region arguments
@@ -107,13 +109,8 @@ if __name__ == '__main__':
     fieldset = FieldSet.from_nemo(filenames, variables, dimensions, indices={'depth': range(
         min_ind, max_ind), 'lon': range(0, 1903), 'lat': range(0, 1877)}, chunksize=False)
 
-    # reversing signs for W, since depth increases
-    # the following doesnt work- for now- changing signs of w in the kernels- util.sudo_AdvectionRK4_3D
-    # if rk_mode!='2D':
-    #     fieldset.W.set_scaling_factor(-1.0)
-
     # minimum depth a particle can attain in the simulations.
-    fieldset.add_constant('Surf_Z0', 0.0)  # in m
+    fieldset.add_constant('Surf_Z0', min_depth)  # in m
 
     if rk_mode == 'DVM':
         print("Loading DVM related fieldset information")
@@ -162,6 +159,9 @@ if __name__ == '__main__':
                                  lon=coords['Longitude'],
                                  lat=coords['Latitude'],
                                  depth=depth_arg,
+                                #  lat=-34.125,
+                                #  lon=18.375,
+                                #  depth=release_depth,
                                  time=simulation_start)
     pset.populate_indices()
 
@@ -174,11 +174,20 @@ if __name__ == '__main__':
                                     outputdt=output_days)
 
     if rk_mode == '3D':
-        kernels = [AdvectionRK4_3D]
+        kernels = [AdvectionRK4_3D, util.CheckOceanBottom]
     elif rk_mode == 'DVM':
         kernels = [AdvectionRK4_3D, plankton.ZooplanktonDrift]
+        output_file.add_metadata(
+            "dvm min depth in m", str(release_depth))
+        output_file.add_metadata(
+            "dvm max depth in m", str(plankton_max_depth))
+        output_file.add_metadata(
+            "migration speed in m/s", str(plankton_speed))
     elif rk_mode == 'sinking':
-        kernels = [AdvectionRK4_3D, util.ParticleSinking]
+        kernels = [AdvectionRK4_3D,
+                   util.ParticleSinking, util.CheckOceanBottom]
+        output_file.add_metadata(
+            "sinking speed in m per day", str(sinking_speed_mpd))
     else:
         kernels = [AdvectionRK4]
 
