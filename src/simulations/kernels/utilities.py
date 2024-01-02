@@ -13,7 +13,7 @@ def CheckOutOfBounds(particle, fieldset, time):
     if particle.depth + particle_ddepth < fieldset.Surf_Z0:
         particle_ddepth = 0
         particle.depth = fieldset.Surf_Z0
-    elif particle.state == StatusCode.ErrorOutOfBounds:
+    if particle.state == StatusCode.ErrorOutOfBounds:
         print("Particle [%d] deleted: (%g %g %g %g)" % (
             particle.id, particle.lon, particle.lat, particle.depth, time))
         particle.delete()
