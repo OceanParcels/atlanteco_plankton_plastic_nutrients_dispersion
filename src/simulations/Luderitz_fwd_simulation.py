@@ -20,16 +20,13 @@ if __name__ == '__main__':
     output_days = timedelta(days=1)  # output dt in days
     start_day = 1
     simulation_days = 100
-    min_depth = 1e-3
-    print("dt, output_dt_days, start_day, total_days, min_depth", dt, output_days, start_day,simulation_days,min_depth)
+    min_depth = 0.5
+    print("dt, output_dt_days, start_day, total_days, min_depth",
+          dt, output_days, start_day, simulation_days, min_depth)
     # sinking speed from Pitcher et al. 1989
     # mean Phytoplankton Carbon (PPC) sinking rate for all taxonomic compositions and depths = 0.25 m/day
     #
     sinking_speed_mpd = 0.25
-
-    # DVM settings for intemediate plankton particles, min_depth is fixed to release depth:
-    plankton_speed = 0.03  # in m/s
-    plankton_max_depth = 150  # in m
 
     ### ------------------------PASSED ARGUMENTS------------------------ ###
     # region arguments
@@ -55,6 +52,20 @@ if __name__ == '__main__':
         else:
             raise ValueError(
                 'Depth indices have not been setup for 2D release.')
+
+    dvm_settings = {'DVM_s': [0.01, 50],  # shallow [vertical speed m/day, maximum depth in m]
+                    'DVM': [0.03, 150],  # intermediate
+                    'DVM_d': [0.05, 500]}  # deep
+
+    # DVM settings for plankton particles, min_depth is fixed to release depth:
+    if rk_mode.__contains__('DVM'):
+        values = dvm_settings.get(rk_mode)
+        if values:
+            plankton_speed = values[0]  # in m/s
+            plankton_max_depth = values[1]  # in m
+            plankton_min_depth = release_depth
+        else:
+            raise ValueError("DVM setting is incorrect")
     # endregion
 
     data_path = '/storage/shared/oceanparcels/input_data/NEMO16_CMCC/'
@@ -112,7 +123,7 @@ if __name__ == '__main__':
     # minimum depth a particle can attain in the simulations.
     fieldset.add_constant('Surf_Z0', min_depth)  # in m
 
-    if rk_mode == 'DVM':
+    if rk_mode.__contains__('DVM'):
         print("Loading DVM related fieldset information")
         fieldset.add_constant('Plankton_speed', plankton_speed)  # in m/s
         fieldset.add_constant('Plankton_min_depth', release_depth)  # in m
@@ -159,9 +170,6 @@ if __name__ == '__main__':
                                  lon=coords['Longitude'],
                                  lat=coords['Latitude'],
                                  depth=depth_arg,
-                                #  lat=-34.125,
-                                #  lon=18.375,
-                                #  depth=release_depth,
                                  time=simulation_start)
     pset.populate_indices()
 
@@ -175,7 +183,7 @@ if __name__ == '__main__':
 
     if rk_mode == '3D':
         kernels = [AdvectionRK4_3D, util.CheckOceanBottom]
-    elif rk_mode == 'DVM':
+    elif rk_mode.__contains__('DVM'):
         kernels = [AdvectionRK4_3D, plankton.ZooplanktonDrift]
         output_file.add_metadata(
             "dvm min depth in m", str(release_depth))
