@@ -29,7 +29,7 @@ def ZooplanktonDrift(particle, fieldset, time):
     # additional conditons -maybe for polar: or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
     if (current_hour >= sunrise_utc and current_hour < sunset_utc):
         # keep going down or stay
-        if particle_dlat != 0.0 and particle_dlon != 0.0:
+        if particle_dlat != 0.0 or particle_dlon != 0.0:
             if ((particle.depth + particle_ddepth + max_vertical_displacement) > fieldset.Plankton_max_depth):
                 particle.depth = fieldset.Plankton_max_depth
                 particle_ddepth = 0

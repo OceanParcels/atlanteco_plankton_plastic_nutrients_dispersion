@@ -2,7 +2,7 @@ from parcels.tools import StatusCode
 
 
 def CheckOutOfBounds(particle, fieldset, time):
-    # 
+    # if particle.depth + particle_ddepth > fieldset.Plankton_max_depth:  
     # if particle.state == StatusCode.ErrorThroughSurface:
     #     # print("Particle [%d] moved: (%g %g %g %g %g %g %g)" % (
     #     #     particle.id, particle.lon, particle.lat, particle.depth, particle_dlon, particle_dlat, particle_ddepth, time))
@@ -20,7 +20,7 @@ def CheckOutOfBounds(particle, fieldset, time):
 
 
 def ParticleSinking(particle, fieldset, time):
-    # addtional depth adjustment.
+    # additional depth adjustment.
     particle_ddepth += fieldset.sinking_speed * particle.dt
 
 
