@@ -135,17 +135,17 @@ if __name__ == '__main__':
                                   :19], '%Y-%m-%dT%H:%M:%S') - simulation_start).total_seconds()
         fieldset.add_constant('start_time', time_zero_totalseconds)
 
-        sunrise_da, sunset_da = sun.load_sunrise_sunset(
+        dawn_da, dusk_da = sun.load_sunrise_sunset(
             days, project_data_path)
 
-        fieldset.add_field(Field.from_xarray(sunrise_da,
-                                             'Sunrise',
+        fieldset.add_field(Field.from_xarray(dawn_da,
+                                             'Dawn',
                                              dimensions={
                                                  'lon': 'lon', 'lat': 'lat', 'time': 'time'},
                                              mesh='spherical'))
 
-        fieldset.add_field(Field.from_xarray(sunset_da,
-                                             'Sunset',
+        fieldset.add_field(Field.from_xarray(dusk_da,
+                                             'Dusk',
                                              dimensions={
                                                  'lon': 'lon', 'lat': 'lat', 'time': 'time'},
                                              mesh='spherical'))

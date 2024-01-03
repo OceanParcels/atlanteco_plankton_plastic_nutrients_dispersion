@@ -16,19 +16,21 @@ def ZooplanktonDrift(particle, fieldset, time):
     total_seconds = time - fieldset.start_time
     total_hour = total_seconds/3600
     current_hour = math.fmod(total_hour, 24)
-
-    sunrise_utc = fieldset.Sunrise[time,
-                                   particle.depth, particle.lat, particle.lon]
-    sunset_utc = fieldset.Sunset[time,
-                                 particle.depth, particle.lat, particle.lon]
+    # using Dawn and dusk times as migration cues instead of sunrise and sunset
+    dawn_utc = fieldset.Dawn[time,
+                             particle.depth, particle.lat, particle.lon]
+    dusk_utc = fieldset.Dusk[time,
+                             particle.depth, particle.lat, particle.lon]
 
     # Polar locations- Not tested yet:
     # sunrise_utc=-1 or sunset_utc=-2: sun never sets here
     # sunrise_utc=-2 or sunset_utc=-1: sun never rises here
 
     # additional conditons -maybe for polar: or (sunrise_utc ==  -1 and sunset_utc ==-2) : #day
-    if (current_hour >= sunrise_utc and current_hour < sunset_utc):
+    if (current_hour >= dawn_utc and current_hour < dusk_utc):
         # keep going down or stay
+        # if particle has movement in this kernel loop, i.e. particle in the ocean cell,
+        # else particle stays at the same location- in the land cell, before starting the upward migration.
         if particle_dlat != 0.0 or particle_dlon != 0.0:
             if ((particle.depth + particle_ddepth + max_vertical_displacement) > fieldset.Plankton_max_depth):
                 particle.depth = fieldset.Plankton_max_depth

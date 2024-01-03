@@ -14,11 +14,11 @@ def load_sunrise_sunset(days, folder_path):
     years= np.unique([d.year for d in days])
 
     # load a non leap-year values for sunrise and sunset
-    sunrise_nc = nc.Dataset(folder_path + 'SunriseTime_2x2_1d_2015.nc','r')
-    sunrise_da = xr.DataArray(sunrise_nc['sunrise'][::], coords={"time": sunrise_nc['time'][:], "lat": sunrise_nc['lat'][:], "lon": sunrise_nc['lon'][:]})
+    sunrise_nc = nc.Dataset(folder_path + 'DawnTime_2x2_1d_2015.nc','r')
+    sunrise_da = xr.DataArray(sunrise_nc['dawn'][::], coords={"time": sunrise_nc['time'][:], "lat": sunrise_nc['lat'][:], "lon": sunrise_nc['lon'][:]})
 
-    sunset_nc = nc.Dataset(folder_path + 'SunsetTime_2x2_1d_2015.nc','r')
-    sunset_da = xr.DataArray(sunset_nc['sunset'][::], coords={"time": sunset_nc['time'][:], "lat": sunset_nc['lat'][:], "lon": sunset_nc['lon'][:]})
+    sunset_nc = nc.Dataset(folder_path + 'DuskTime_2x2_1d_2015.nc','r')
+    sunset_da = xr.DataArray(sunset_nc['dusk'][::], coords={"time": sunset_nc['time'][:], "lat": sunset_nc['lat'][:], "lon": sunset_nc['lon'][:]})
     
     # for unique years in the data files, get the datetimes for all days and remove the leap year dates. 
     # It is okay to have missing values for a day in Feb, interpolation should work fine. It is just o have consistent values for all days
