@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import netCDF4 as nc
 import numpy as np  
 
-# inputs for this tool are duration and area on the map for which the sunrise_sunset should be calculated
+# inputs for this tool are duration and area on the map for which the dawn_dusk should be calculated
 # and for which grid size
 start_date = datetime(2015, 1, 1)
 end_date = datetime(2015, 12, 31)
@@ -20,34 +20,34 @@ lats = np.arange(min_lat, max_lat, grid_size)
 print(lats)
 print(lons)
 
-# TODO: remove land cells from the mesh
+sunrise_sunset_type= 'civil'
 
 current_date = start_date
 n_days = 365
 # create the dataset to create
-ds_sunrise = np.zeros([n_days, len(lats), len(lons)])
-ds_sunset = np.zeros([n_days, len(lats), len(lons)])
+ds_dawn = np.zeros([n_days, len(lats), len(lons)])
+ds_dusk = np.zeros([n_days, len(lats), len(lons)])
 day = 0
 
 while day < n_days:
 
     for j in range(len(lats)):
         for i in range(len(lons)):
-            sunrise = AlmanacSunrise(lats[j], lons[i], current_date)
-            sunset = AlmanacSunset(lats[j], lons[i], current_date)
-            ds_sunrise[day, j, i] = sunrise
-            ds_sunset[day, j, i] = sunset
+            dawn = AlmanacSunrise(lats[j], lons[i], current_date, sunrise_sunset_type)
+            dusk = AlmanacSunset(lats[j], lons[i], current_date, sunrise_sunset_type)
+            ds_dawn[day, j, i] = dawn
+            ds_dusk[day, j, i] = dusk
     current_date += timedelta(days=1)
     day += 1
 
-print("sunrise, sunset calculated")
+print("dawn, dusk calculated")
 
-# store the output of sunrise and sunset in a netcdf format to enable reading by parcels kernel.
+# store the output of dawn and dusk in a netcdf format to enable reading by parcels kernel.
 
 home_folder='/nethome/manra003/atlanteco_plankton_plastic_nutrients_dispersion/data/'
 
-ds = nc.Dataset(home_folder + 'SunriseTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
-ds.description = "File to store sunrise time in UTC with grid size of 2 x 2 degree"
+ds = nc.Dataset(home_folder + 'DawnTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
+ds.description = "File to store dawn time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
 ds.createDimension('lon', len(lons))
@@ -57,9 +57,9 @@ ds.createDimension('time', n_days)
 times = ds.createVariable('time', 'f8', ('time',))
 lats1 = ds.createVariable('lat', 'f4', ('lat',))
 lons1 = ds.createVariable('lon', 'f4', ('lon',))
-sunrise_time = ds.createVariable('sunrise', 'f4', ('time', 'lat', 'lon'))
+dawn_time = ds.createVariable('dawn', 'f4', ('time', 'lat', 'lon'))
 
-sunrise_time.units = 'UTC'
+dawn_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
 times.calendar = 'standard'
 
@@ -67,12 +67,12 @@ dates = [start_date + n * timedelta(days=1) for n in range(n_days)]
 times[:] = nc.date2num(dates, units=times.units, calendar=times.calendar)
 lats1[:] = lats
 lons1[:] = lons
-sunrise_time[::] = ds_sunrise
+dawn_time[::] = ds_dawn
 
 ds.close()
 
-ds = nc.Dataset(home_folder + 'SunsetTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
-ds.description = "File to store sunset time in UTC with grid size of 2 x 2 degree"
+ds = nc.Dataset(home_folder + 'DuskTime_2x2_1d_2015.nc', 'w', format='NETCDF4')
+ds.description = "File to store dusk time in UTC with grid size of 2 x 2 degree"
 ds.history = "Created " + datetime.utcnow().strftime("%d/%m/%y")
 
 ds.createDimension('lon', len(lons))
@@ -82,9 +82,9 @@ ds.createDimension('time', n_days)
 times = ds.createVariable('time', 'f8', ('time',))
 lats1 = ds.createVariable('lat', 'f4', ('lat',))
 lons1 = ds.createVariable('lon', 'f4', ('lon',))
-sunset_time = ds.createVariable('sunset', 'f4', ('time', 'lat', 'lon'))
+dusk_time = ds.createVariable('dusk', 'f4', ('time', 'lat', 'lon'))
 
-sunset_time.units = 'UTC'
+dusk_time.units = 'UTC'
 times.units = 'seconds since 2015-01-01'
 times.calendar = 'standard'
 
@@ -92,8 +92,8 @@ dates = [start_date + n * timedelta(days=1) for n in range(n_days)]
 times[:] = nc.date2num(dates, units=times.units, calendar=times.calendar)
 lats1[:] = lats
 lons1[:] = lons
-sunset_time[::] = ds_sunset
+dusk_time[::] = ds_dusk
 
 ds.close()
 
-print("sunrise sunset saved in the NetCDF files")
+print("dawn dusk saved in the NetCDF files")

@@ -3,7 +3,23 @@
 # 	published by Nautical Almanac Office
 # 	United States Naval Observatory
 
+# day, month, year:      date of sunrise/sunset
+# 	latitude, longitude:   location for sunrise/sunset
+# 	zenith:                Sun's zenith for sunrise/sunset
+# 	  offical      = 90 degrees 50'
+# 	  civil        = 96 degrees
+# 	  nautical     = 102 degrees
+# 	  astronomical = 108 degrees
+
+# 	NOTE: longitude is positive for East and negative for West
+
 from math import floor, sin, atan, tan, cos, asin, acos, pi
+
+zenith_angle = {'official': 90 + 50/60,
+                'civil': 96,
+                'nautical': 102,
+                'astronomical': 108}
+
 
 def get_day_of_Year(date_info):
     day = date_info.day
@@ -16,10 +32,10 @@ def get_day_of_Year(date_info):
     N = N1 - (N2 * N3) + day - 30
     return N
 
-def AlmanacSunrise(latitude, longitude, date_info):
-    # zenith angle- 90 degrees 50'
-    zenith = pi * (90 + 50 / 60) / 180
 
+def AlmanacSunrise(latitude, longitude, date_info, sunrise_sunset_type):
+    # zenith angle- 90 degrees 50'
+    zenith = pi * zenith_angle.get(sunrise_sunset_type) / 180
     # Step 1. calculate the day of the year
     N = get_day_of_Year(date_info)
 
@@ -34,7 +50,8 @@ def AlmanacSunrise(latitude, longitude, date_info):
     M = (0.9856 * t) - 3.289
 
     # 4. calculate the Sun's true longitude
-    L = M + (1.916 * sin(M * pi / 180)) + (0.020 * sin(2 * M * pi / 180)) + 282.634
+    L = M + (1.916 * sin(M * pi / 180)) + \
+        (0.020 * sin(2 * M * pi / 180)) + 282.634
 
     if L > 360:
         L -= 360
@@ -68,7 +85,8 @@ def AlmanacSunrise(latitude, longitude, date_info):
 
     # calculate the Sun's local hour angle
 
-    cosH = (cos(zenith) - (sinDec * sin(latitude * pi / 180))) / (cosDec * cos(latitude * pi / 180))
+    cosH = (cos(zenith) - (sinDec * sin(latitude * pi / 180))) / \
+        (cosDec * cos(latitude * pi / 180))
 
     if cosH > 1:
         print("the sun never rises on this location (on the specified date)")
@@ -100,8 +118,8 @@ def AlmanacSunrise(latitude, longitude, date_info):
     return UTC
 
 
-def AlmanacSunset(latitude, longitude, date_info):
-    zenith = pi * (90 + 50 / 60) / 180
+def AlmanacSunset(latitude, longitude, date_info, sunrise_sunset_type):
+    zenith = pi * zenith_angle.get(sunrise_sunset_type) / 180
 
     # Step 1. calculate the day of the year
     N = get_day_of_Year(date_info)
@@ -118,7 +136,8 @@ def AlmanacSunset(latitude, longitude, date_info):
     M = (0.9856 * t) - 3.289
 
     # 4. calculate the Sun's true longitude
-    L = M + (1.916 * sin(M * pi / 180)) + (0.020 * sin(2 * M * pi / 180)) + 282.634
+    L = M + (1.916 * sin(M * pi / 180)) + \
+        (0.020 * sin(2 * M * pi / 180)) + 282.634
 
     if L > 360:
         L -= 360
@@ -152,7 +171,8 @@ def AlmanacSunset(latitude, longitude, date_info):
 
     # calculate the Sun's local hour angle
 
-    cosH = (cos(zenith) - (sinDec * sin(latitude * pi / 180))) / (cosDec * cos(latitude * pi / 180))
+    cosH = (cos(zenith) - (sinDec * sin(latitude * pi / 180))) / \
+        (cosDec * cos(latitude * pi / 180))
 
     if cosH > 1:
         print("the sun never rises on this location (on the specified date)")
