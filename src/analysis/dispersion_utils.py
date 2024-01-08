@@ -30,7 +30,7 @@ def distance(lon1, lat1, lon2, lat2, r=6378):
     return c*r
 
 
-def threshold_days(array, delta_d, mask_value=104.0):
+def threshold_days(array, delta_d, mask_value=101.0):
     def delta_value_index(row, tc):
         search = np.where(row>=tc)[0]
         if search.size > 0:     # crossed tc for the first time, and may/may not be deleted afterwards
@@ -46,11 +46,11 @@ def threshold_days(array, delta_d, mask_value=104.0):
     return days
 
 
-def get_diff_CDF_PDF(array, delta_d, bins):
+def get_diff_CDF_PDF(array, delta_d, days):
     diff = threshold_days(array, delta_d)
     # print(stats.describe(diff, axis= None, nan_policy='omit'))
-    print("Discarded particles count: ",np.where(np.isnan(diff))[0].size)
-    count, _ = np.histogram(diff, bins=bins)  
+    print("Discarded: ",np.where(np.isnan(diff))[0].size)
+    count, _ = np.histogram(diff, bins=days+1, range=(0,days+1))  
     pdf = count/np.sum(count)  # computation discards particles that were deleted before crossing the threshold distance. very minor
     cdf = np.cumsum(pdf)
     return cdf, pdf
