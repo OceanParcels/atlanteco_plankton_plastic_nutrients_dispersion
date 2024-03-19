@@ -42,10 +42,6 @@ def get_separation_array(ds1, ds2, p_total, t_days):
 print("starting analysis")
 
 for mode in compare_modes:
-    if dvm_mode =='2D':
-        if mode !='3D':
-            break
-
     distance_folder = output_folder + "Distances/{0}-{1}/".format(dvm_mode, mode)
     if not os.path.exists(distance_folder):
         os.makedirs(distance_folder)
