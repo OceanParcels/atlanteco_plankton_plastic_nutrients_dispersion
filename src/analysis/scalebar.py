@@ -2,7 +2,7 @@
 import cartopy.crs as ccrs
 import numpy as np
 
-def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
+def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3, font_size=12):
     """
     ax is the axes to draw the scalebar on.
     length is the length of the scalebar in km.
@@ -41,4 +41,4 @@ def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
     ax.plot(bar_xs, [sby, sby], transform=tmc, color='k', linewidth=linewidth)
     #Plot the scalebar label
     ax.text(sbx, sby, str(length) + ' km', transform=tmc,
-            horizontalalignment='center', verticalalignment='bottom')
+            horizontalalignment='center', verticalalignment='bottom', fontsize=font_size)
